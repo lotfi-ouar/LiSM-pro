@@ -4302,81 +4302,100 @@ function exportSalesLogToExcel() {
 
 }
 
-// 17. وضع الشاشة الكاملة (Fullscreen Mode Logic)
+// 17. وضع الشاشة الكاملة (Fullscreen Mode Logic - Mobile & iOS Compatible)
+
+let isSimulatedFs = false;
+
+function simulateFullscreen(active) {
+    isSimulatedFs = active;
+    if (active) {
+        document.body.classList.add("simulated-fullscreen");
+        updateFullscreenButton(true);
+    } else {
+        document.body.classList.remove("simulated-fullscreen");
+        updateFullscreenButton(false);
+    }
+}
 
 function toggleFullScreen() {
+    const docEl = document.documentElement;
+    const doc = document;
 
-    if (!document.fullscreenElement) {
+    const requestFS = docEl.requestFullscreen || 
+                      docEl.mozRequestFullScreen || 
+                      docEl.webkitRequestFullscreen || 
+                      docEl.msRequestFullscreen;
 
-        document.documentElement.requestFullscreen().then(() => {
+    const exitFS = doc.exitFullscreen || 
+                   doc.mozCancelFullScreen || 
+                   doc.webkitExitFullscreen || 
+                   doc.msExitFullscreen;
 
-            updateFullscreenButton(true);
+    const fsElement = doc.fullscreenElement || 
+                      doc.mozFullScreenElement || 
+                      doc.webkitFullscreenElement || 
+                      doc.msFullscreenElement;
 
-        }).catch(err => {
-
-            alert(`خطأ أثناء تفعيل الشاشة الكاملة: ${err.message}`);
-
-        });
-
-    } else {
-
-        if (document.exitFullscreen) {
-
-            document.exitFullscreen().then(() => {
-
-                updateFullscreenButton(false);
-
-            });
-
-        }
-
+    if (isSimulatedFs) {
+        simulateFullscreen(false);
+        return;
     }
 
+    if (!fsElement) {
+        if (requestFS) {
+            requestFS.call(docEl).then(() => {
+                updateFullscreenButton(true);
+            }).catch(err => {
+                simulateFullscreen(true);
+            });
+        } else {
+            simulateFullscreen(true);
+        }
+    } else {
+        if (exitFS) {
+            exitFS.call(doc).then(() => {
+                updateFullscreenButton(false);
+            }).catch(err => {
+                simulateFullscreen(false);
+            });
+        } else {
+            simulateFullscreen(false);
+        }
+    }
 }
 
 function updateFullscreenButton(isFull) {
-
     const btn = document.getElementById("btn-fullscreen-toggle");
-
     if (!btn) return;
-
     const span = btn.querySelector("span");
-
     const icon = btn.querySelector("i");
-
     if (isFull) {
-
         if (span) span.innerText = "شاشة عادية";
-
         if (icon) icon.className = "fa-solid fa-compress";
-
     } else {
-
         if (span) span.innerText = "الشاشة الكاملة";
-
         if (icon) icon.className = "fa-solid fa-expand";
-
     }
-
 }
 
-// مراقبة التغييرات الخارجية للشاشة الكاملة (مثل الضغط على Esc)
-
-document.addEventListener("fullscreenchange", () => {
-
-    if (document.fullscreenElement) {
-
+function handleFsChange() {
+    const doc = document;
+    const fsElement = doc.fullscreenElement || 
+                      doc.mozFullScreenElement || 
+                      doc.webkitFullscreenElement || 
+                      doc.msFullscreenElement;
+    if (fsElement) {
         updateFullscreenButton(true);
-
     } else {
-
         updateFullscreenButton(false);
-
     }
+}
 
-});
+document.addEventListener("fullscreenchange", handleFsChange);
+document.addEventListener("webkitfullscreenchange", handleFsChange);
+document.addEventListener("mozfullscreenchange", handleFsChange);
+document.addEventListener("MSFullscreenChange", handleFsChange);
 
-// ==========================================================================
 
 // 18. وظائف النظام التجاري المتقدم (الحسابات، الصلاحيات، والنسخ الاحتياطي)
 
@@ -6907,8 +6926,7 @@ function getSyncServerBaseUrl() {
 }
 
 function getStoreQueryParam() {
-    const storeId = localStorage.getItem("active_store_id") || "main";
-    return `?storeId=${storeId}`;
+    return "";
 }
 
 window.switchActiveStore = function(storeId) {
@@ -6949,15 +6967,21 @@ async function initDatabaseSync() {
                 activeStoreNameSpan.innerText = names[activeStoreId] || activeStoreId;
             }
 
-            if (data && data.products && data.products.length > 0) {
+            if (data && (Array.isArray(data.products) || Array.isArray(data.users))) {
                 if (data.storeSettings) appState.storeSettings = data.storeSettings;
-                appState.products = data.products;
+                appState.products = data.products || [];
                 appState.transactions = data.transactions || [];
                 appState.debts = data.debts || [];
                 appState.supplierDebts = data.supplierDebts || [];
                 if (data.users && data.users.length > 0) appState.users = data.users;
 
                 localStorage.setItem("smart_shop_state", JSON.stringify(appState));
+                
+                // إعادة فحص الترخيص فور جلب البيانات من السيرفر لفك القفل تلقائياً دون طلب كود جديد
+                if (typeof window.checkAppLicense === 'function') {
+                    window.checkAppLicense();
+                }
+                
                 if (typeof calculateGlobalStats === 'function') calculateGlobalStats();
                 if (typeof renderCurrentTab === 'function') renderCurrentTab();
             } else {
@@ -7028,9 +7052,9 @@ function startLanSyncPolling() {
                     const dbRes = await fetch(syncServerUrl + '/api/db' + getStoreQueryParam(), { cache: 'no-store' });
                     if (dbRes.ok) {
                         const newDb = await dbRes.json();
-                        if (newDb && newDb.products) {
+                        if (newDb && (Array.isArray(newDb.products) || Array.isArray(newDb.users))) {
                             if (newDb.storeSettings) appState.storeSettings = newDb.storeSettings;
-                            appState.products = newDb.products;
+                            appState.products = newDb.products || [];
                             appState.transactions = newDb.transactions || [];
                             appState.debts = newDb.debts || [];
                             appState.supplierDebts = newDb.supplierDebts || [];
@@ -11366,16 +11390,199 @@ function updateLicenseUIStatus(text) {
     if (badge) badge.innerText = `الحالة: ${text}`;
 }
 
-window.checkAppLicense = function() {
-    try {
-        const overlay = document.getElementById("license-guard-overlay");
-        if (overlay) overlay.style.display = "none";
-        hideLicenseExpiryWarning();
-        updateLicenseUIStatus("مفعّل مدى الحياة ♾️");
-        return true;
-    } catch (e) {
-        return true;
+// أكواد تفعيل رخصة البرنامج الـ 40 المعتمدة (ذات الاستخدام الواحد)
+const LICENSE_CODES = {
+    // 10 أكواد تفعيل لمدة أسبوع (7 أيام)
+    "TARAK-WK-1A2B-3C4D": { days: 7, type: "week" },
+    "TARAK-WK-5E6F-7G8H": { days: 7, type: "week" },
+    "TARAK-WK-9J0K-1L2M": { days: 7, type: "week" },
+    "TARAK-WK-3N4P-5Q6R": { days: 7, type: "week" },
+    "TARAK-WK-7S8T-9U0V": { days: 7, type: "week" },
+    "TARAK-WK-1W2X-3Y4Z": { days: 7, type: "week" },
+    "TARAK-WK-5A6B-7C8D": { days: 7, type: "week" },
+    "TARAK-WK-9E0F-1G2H": { days: 7, type: "week" },
+    "TARAK-WK-3J4K-5L6M": { days: 7, type: "week" },
+    "TARAK-WK-7N8P-9Q0R": { days: 7, type: "week" },
+
+    // 10 أكواد تفعيل لمدة شهر (30 يوم)
+    "TARAK-MO-1X2Y-3Z4A": { days: 30, type: "month" },
+    "TARAK-MO-5B6C-7D8E": { days: 30, type: "month" },
+    "TARAK-MO-9F0G-1H2J": { days: 30, type: "month" },
+    "TARAK-MO-3K4L-5M6N": { days: 30, type: "month" },
+    "TARAK-MO-7P8Q-9R0S": { days: 30, type: "month" },
+    "TARAK-MO-1T2U-3V4W": { days: 30, type: "month" },
+    "TARAK-MO-5X6Y-7Z8A": { days: 30, type: "month" },
+    "TARAK-MO-9B0C-1D2E": { days: 30, type: "month" },
+    "TARAK-MO-3F4G-5H6J": { days: 30, type: "month" },
+    "TARAK-MO-7K8L-9M0N": { days: 30, type: "month" },
+
+    // 10 أكواد تفعيل لمدة سنة (365 يوم)
+    "TARAK-YR-1P2Q-3R4S": { days: 365, type: "year" },
+    "TARAK-YR-5T6U-7V8W": { days: 365, type: "year" },
+    "TARAK-YR-9X0Y-1Z2A": { days: 365, type: "year" },
+    "TARAK-YR-3B4C-5D6E": { days: 365, type: "year" },
+    "TARAK-YR-7F8G-9H0J": { days: 365, type: "year" },
+    "TARAK-YR-1K2L-3M4N": { days: 365, type: "year" },
+    "TARAK-YR-5P6Q-7R8S": { days: 365, type: "year" },
+    "TARAK-YR-9T0U-1V2W": { days: 365, type: "year" },
+    "TARAK-YR-3X4Y-5Z6A": { days: 365, type: "year" },
+    "TARAK-YR-7B8C-9D0E": { days: 365, type: "year" },
+
+    // 10 أكواد تفعيل مدى الحياة (غير محدود)
+    "TARAK-LT-1F2G-3H4J": { days: 99999, type: "lifetime" },
+    "TARAK-LT-5K6L-7M8N": { days: 99999, type: "lifetime" },
+    "TARAK-LT-9P0Q-1R2S": { days: 99999, type: "lifetime" },
+    "TARAK-LT-3T4U-5V6W": { days: 99999, type: "lifetime" },
+    "TARAK-LT-7X8Y-9Z0A": { days: 99999, type: "lifetime" },
+    "TARAK-LT-1B2C-3D4E": { days: 99999, type: "lifetime" },
+    "TARAK-LT-5F6G-7H8J": { days: 99999, type: "lifetime" },
+    "TARAK-LT-9K0L-1M2N": { days: 99999, type: "lifetime" },
+    "TARAK-LT-3P4Q-5R6S": { days: 99999, type: "lifetime" },
+    "TARAK-LT-7T8U-9V0W": { days: 99999, type: "lifetime" }
+};
+
+window.activateLicenseKey = async function() {
+    const input = document.getElementById("license-key-input");
+    if (!input) return;
+    const key = input.value.trim().toUpperCase();
+
+    const licenseInfo = LICENSE_CODES[key];
+    if (!licenseInfo) {
+        alert("❌ رمز التفعيل غير صحيح! يرجى إدخال رمز تفعيل صالح.");
+        return;
     }
+
+    const expiryTimestamp = licenseInfo.days === 99999 ? null : (Date.now() + licenseInfo.days * 24 * 60 * 60 * 1000);
+
+    if (!appState.storeSettings) {
+        appState.storeSettings = {};
+    }
+    
+    // تهيئة مصفوفة الأكواد المستخدمة إن لم تكن موجودة
+    if (!appState.storeSettings.usedLicenseCodes) {
+        appState.storeSettings.usedLicenseCodes = [];
+    }
+
+    // التحقق مما إذا كان الكود مستخدماً من قبل
+    if (appState.storeSettings.usedLicenseCodes.includes(key)) {
+        alert("❌ هذا الكود تم استخدامه سابقاً! يرجى إدخال رمز تفعيل جديد.");
+        return;
+    }
+
+    appState.storeSettings.license = {
+        activated: true,
+        type: licenseInfo.type,
+        expiryDate: expiryTimestamp,
+        activationCode: key
+    };
+
+    // إضافة الكود لقائمة الأكواد المستخدمة لمنع إعادة تشغيله
+    appState.storeSettings.usedLicenseCodes.push(key);
+
+    // فرض تسجيل الخروج عند تفعيل البرنامج لأول مرة ليتم مطالبتهم ببيانات TARAK
+    appState.currentUser = null;
+
+    saveToLocalStorage();
+    
+    // رفع حالة الترخيص الجديدة فوراً وقبل التحديث إلى ملف السيرفر database.json
+    if (typeof sendDataToServer === 'function') {
+        await sendDataToServer();
+    }
+    
+    alert(`🎉 تم التفعيل بنجاح! نوع الاشتراك: [${licenseInfo.type === "lifetime" ? "مدى الحياة ♾️" : licenseInfo.type === "year" ? "عام" : licenseInfo.type === "month" ? "شهر" : "أسبوع"}]`);
+    
+    const overlay = document.getElementById("license-guard-overlay");
+    if (overlay) overlay.style.display = "none";
+    
+    // إخفاء حاوية البرنامج وعرض شاشة تسجيل الدخول
+    const loginScreen = document.getElementById("login-screen");
+    if (loginScreen) loginScreen.classList.remove("hidden");
+    const appContainer = document.getElementById("app-container");
+    if (appContainer) appContainer.classList.add("hidden");
+    
+    window.checkAppLicense();
+};
+
+window.activateLicenseFromSettings = function() {
+    const input = document.getElementById("settings-license-input");
+    if (!input) return;
+    const key = input.value.trim().toUpperCase();
+    
+    const licenseInfo = LICENSE_CODES[key];
+    if (!licenseInfo) {
+        showToast("❌ رمز التفعيل غير صحيح!");
+        return;
+    }
+
+    const expiryTimestamp = licenseInfo.days === 99999 ? null : (Date.now() + licenseInfo.days * 24 * 60 * 60 * 1000);
+
+    appState.storeSettings.license = {
+        activated: true,
+        type: licenseInfo.type,
+        expiryDate: expiryTimestamp,
+        activationCode: key
+    };
+
+    saveToLocalStorage();
+    showToast(`🎉 تم تمديد الترخيص بنجاح! نوع الاشتراك: [${licenseInfo.type === "lifetime" ? "مدى الحياة ♾️" : licenseInfo.type === "year" ? "عام" : licenseInfo.type === "month" ? "شهر" : "أسبوع"}]`);
+    
+    input.value = "";
+    window.checkAppLicense();
+    window.renderSettingsTab();
+};
+
+window.checkAppLicense = function() {
+    const overlay = document.getElementById("license-guard-overlay");
+    if (!appState.storeSettings) appState.storeSettings = {};
+    const license = appState.storeSettings.license || { activated: false };
+
+    // إذا لم يكن البرنامج مفعلاً
+    if (!license.activated) {
+        if (overlay) {
+            overlay.style.display = "flex";
+            overlay.classList.remove("hidden");
+        }
+        updateLicenseUIStatus("❌ غير مفعّل");
+        return false;
+    }
+
+    // إذا كان مفعلاً باشتراك مؤقت
+    if (license.expiryDate) {
+        const now = Date.now();
+        const expiry = Number(license.expiryDate);
+        if (now > expiry) {
+            // انتهت الصلاحية
+            if (overlay) {
+                overlay.style.display = "flex";
+                overlay.classList.remove("hidden");
+            }
+            updateLicenseUIStatus("⚠️ انتهت صلاحية الترخيص!");
+            return false;
+        } else {
+            // نشط ومتبقي أيام
+            if (overlay) {
+                overlay.style.display = "none";
+                overlay.classList.add("hidden");
+            }
+            const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+            updateLicenseUIStatus(`🟢 نشط (متبقي ${daysLeft} يوم)`);
+            if (daysLeft <= 7) {
+                showLicenseExpiryWarning(daysLeft);
+            } else {
+                hideLicenseExpiryWarning();
+            }
+            return true;
+        }
+    }
+
+    // تفعيل مدى الحياة
+    if (overlay) {
+        overlay.style.display = "none";
+        overlay.classList.add("hidden");
+    }
+    hideLicenseExpiryWarning();
+    updateLicenseUIStatus("🟢 كامل (مدى الحياة ♾️)");
+    return true;
 };
 
 function showLicenseExpiryWarning(daysRemaining) {
@@ -11419,56 +11626,9 @@ function hideLicenseExpiryWarning() {
     if (banner) banner.remove();
 }
 
-window.activateLicenseKey = function(customKey) {
-    let inputVal = customKey;
-    if (!inputVal) {
-        const input1 = document.getElementById("license-modal-input");
-        const input2 = document.getElementById("license-key-input");
-        inputVal = (input1 && input1.value) ? input1.value : (input2 ? input2.value : "");
-    }
-    
-    const key = (inputVal || "").trim().toUpperCase();
-    if (key === "") {
-        alert("⚠️ الرجاء إدخال رمز تفعيل صالح!");
-        return;
-    }
-    
-    let duration = EASY_LICENSE_KEYS[key];
-    if (duration === undefined) {
-        const hash = hashKey(key);
-        duration = LICENSE_KEY_HASHES[hash];
-    }
-    
-    if (duration !== undefined) {
-        const now = Date.now();
-        const expiry = duration === -1 ? "unlimited" : (now + duration * 24 * 60 * 60 * 1000);
-        const licenseData = {
-            key: key,
-            expiry: expiry,
-            activatedAt: now,
-            durationDays: duration
-        };
-        
-        localStorage.setItem("shop_license_data", JSON.stringify(licenseData));
-        
-        let msg = "🎉 تم تفعيل اشتراك البرنامج بنجاح مدى الحياة (غير محدود)!";
-        if (duration === 7) msg = "📅 تم تفعيل اشتراك البرنامج بنجاح لمدة أسبوع (7 أيام)!";
-        if (duration === 30) msg = "🗓️ تم تفعيل اشتراك البرنامج بنجاح لمدة شهر كامل (30 يوم)!";
-        if (duration === 365) msg = "📆 تم تفعيل اشتراك البرنامج بنجاح لمدة سنة كاملة (365 يوم)!";
-        
-        alert(msg);
-        
-        const manageModal = document.getElementById("license-manage-modal");
-        if (manageModal) manageModal.classList.add("hidden");
-        
-        const guardOverlay = document.getElementById("license-guard-overlay");
-        if (guardOverlay) guardOverlay.style.display = "none";
-        
-        window.checkAppLicense();
-    } else {
-        alert("❌ كود التفعيل المدخل غير صحيح! يرجى التأكد من الرمز وإعادة المحاولة.");
-    }
-};
+
+// Old duplicate activateLicenseKey removed
+
 
 
 // ==========================================================================
@@ -11840,20 +12000,6 @@ window.saveEditedTransaction = function() {
 };
 
 // 8. رندرة تبويب الإعدادات
-window.renderSettingsTab = function() {
-    const uName = document.getElementById("settings-current-user-name");
-    const uRole = document.getElementById("settings-current-user-role");
-    if (appState.currentUser) {
-        if (uName) uName.innerText = appState.currentUser.displayName || appState.currentUser.username;
-        if (uRole) uRole.innerText = appState.currentUser.role === "admin" ? "صلاحية كاملة (مدير)" : "صلاحية كاشير";
-    }
-    
-    const statusEl = document.getElementById("settings-license-status");
-    if (statusEl) {
-        statusEl.innerText = "🟢 ترخيص نسختك: كاملة وغير محدودة (مدى الحياة)";
-        statusEl.style.color = "var(--color-success)";
-    }
-};
 
 // 9. تغيير ثيم وألوان البرنامج
 window.setAppThemeCustom = function(themeName) {
@@ -11864,35 +12010,9 @@ window.setAppThemeCustom = function(themeName) {
 };
 
 // 10. تفعيل كود ترخيص من صفحة الإعدادات
-window.activateLicenseFromSettings = function() {
-    const input = document.getElementById("settings-license-input");
-    if (!input) return;
-    const key = input.value.trim().toUpperCase();
-    if (key === "") {
-        alert("⚠️ الرجاء إدخال رمز تفعيل صالح!");
-        return;
-    }
-    
-    const hash = hashKey(key);
-    const duration = LICENSE_KEY_HASHES[hash];
-    
-    if (duration !== undefined) {
-        const expiry = duration === -1 ? "unlimited" : (Date.now() + duration * 24 * 60 * 60 * 1000);
-        const licenseData = {
-            key: key,
-            expiry: expiry,
-            activatedAt: Date.now()
-        };
-        
-        localStorage.setItem("shop_license_data", JSON.stringify(licenseData));
-        alert("🎉 تم تطبيق كود التفعيل الجديد وتمديد صلاحية تشغيل البرنامج بنجاح!");
-        renderSettingsTab();
-        window.checkAppLicense();
-        input.value = "";
-    } else {
-        alert("❌ رمز التفعيل المدخل غير صحيح! يرجى التأكد من الرمز وإعادة المحاولة.");
-    }
-};
+
+// Old duplicate activateLicenseFromSettings removed
+
 
 // 11. تبديل ومغادرة حساب المستخدم
 window.switchUserAccount = function() {

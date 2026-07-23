@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام تسيير المحل الذكي Pro</title>
+    <title>lily-pro</title>
     
     <!-- مكتبة SheetJS لتصدير واستيراد ملفات Excel المنسقة -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -14,6 +14,32 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     
     <script>
+        // فرض تحديث الذاكرة المحلية للمتصفح لتجاوز الكاش تماماً
+        (function() {
+            const CURRENT_CODE_VERSION = "7.0";
+            if (localStorage.getItem("app_code_version") !== CURRENT_CODE_VERSION) {
+                localStorage.setItem("app_code_version", CURRENT_CODE_VERSION);
+                localStorage.removeItem("smart_shop_state");
+                console.log("🧹 Cached local storage cleared for version 3.5!");
+            }
+        })();
+
+        // تحليل معلمات الرابط فوراً لتحديد المحل النشط (Multi-Store Query Params)
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const storeParam = urlParams.get('store');
+            if (storeParam) {
+                const currentStore = localStorage.getItem("active_store_id") || "main";
+                if (currentStore !== storeParam) {
+                    localStorage.setItem("active_store_id", storeParam);
+                    // مسح الجلسة والبيانات القديمة فوراً لحماية الخصوصية وفرض تسجيل دخول جديد للمتجر الجديد
+                    localStorage.removeItem("smart_shop_state");
+                }
+                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+            }
+        })();
+
         // معالج أخطاء مرئي لعرض المشاكل بوضوح على الشاشة وإرسالها للمطور
         window.addEventListener('error', function(e) {
             let errDiv = document.getElementById('global-error-box');
@@ -102,6 +128,7 @@
             if (tabId === "inventory" && typeof window.renderInventoryTable === 'function') window.renderInventoryTable();
             if (tabId === "sales" && typeof window.renderSalesTabTable === 'function') window.renderSalesTabTable();
             if (tabId === "audit" && typeof window.renderAuditTable === 'function') window.renderAuditTable();
+            if (tabId === "logs" && typeof window.renderAuditLogsTable === 'function') window.renderAuditLogsTable();
 
             document.querySelectorAll(".mobile-bottom-nav .mobile-nav-item, .sidebar-menu-item").forEach(el => {
                 if (el.getAttribute("data-tab") === tabId || (el.getAttribute("onclick") && el.getAttribute("onclick").includes("'" + tabId + "'"))) {
@@ -123,9 +150,12 @@
             const modal = document.getElementById("phone-sync-modal");
             if (!modal) return;
 
-            let defaultUrl = "http://" + (window.location.hostname || "192.168.100.69") + ":5000";
+            const activeStoreId = localStorage.getItem("active_store_id") || "main";
+            const storeSuffix = activeStoreId === "main" ? "" : "?store=" + activeStoreId;
+
+            let defaultUrl = "http://" + (window.location.hostname || "192.168.100.69") + ":5000" + storeSuffix;
             if (window.location.origin && !window.location.origin.includes("localhost") && !window.location.origin.includes("127.0.0.1")) {
-                defaultUrl = window.location.origin;
+                defaultUrl = window.location.origin + storeSuffix;
             }
 
             const input = document.getElementById("phone-sync-url-input");
@@ -136,14 +166,14 @@
                 qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(defaultUrl);
             }
 
-            // استعلام الخادم المحلي بشكل مطلق لتحديث الرابط لـ Cloudflare HTTPS المشفر للآيفون
             try {
                 fetch('http://127.0.0.1:5000/api/info')
                     .then(res => res.json())
                     .then(data => {
                         if (data && data.fullUrl) {
-                            if (input) input.value = data.fullUrl;
-                            if (qrImg) qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(data.fullUrl);
+                            const finalUrl = data.fullUrl + (activeStoreId === "main" ? "" : (data.fullUrl.includes("?") ? "&" : "?") + "store=" + activeStoreId);
+                            if (input) input.value = finalUrl;
+                            if (qrImg) qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(finalUrl);
                         }
                     })
                     .catch(function(err) { console.warn("Fetch failed:", err); });
@@ -151,7 +181,6 @@
 
             modal.classList.remove("hidden");
         };
-
         window.closePhoneSyncModal = function() {
             const modal = document.getElementById("phone-sync-modal");
             if (modal) modal.classList.add("hidden");
@@ -194,7 +223,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <!-- ملف التنسيقات الخاص بنا -->
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=7.0">
 
     <!-- تنسيقات نافذة الباركود - ألوان ونصوص واضحة -->
     <style>
@@ -254,47 +283,19 @@
     <link rel="icon" type="image/png" href="icon.png">
 </head>
 <body>
-    <!-- واجهة التحقق من تفعيل ترخيص البرنامج -->
-    <div id="license-guard-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #0f172a; z-index: 999999; display: none; align-items: center; justify-content: center; font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px;">
-        <div class="scanner-card glass" style="max-width: 480px; width: 100%; border: 1px solid var(--glass-border); border-radius: 16px; padding: 30px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5); background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px);">
-            <div style="font-size: 3.5rem; color: #ef4444; margin-bottom: 20px;">
-                <i class="fa-solid fa-key pulse" style="filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.4));"></i>
-            </div>
-            
-            <h2 id="license-guard-title" style="font-weight: 900; font-size: 1.6rem; color: #f1f5f9; margin-bottom: 10px;">🔐 تفعيل رخصة البرنامج</h2>
-            
-            <p id="license-guard-desc" style="font-size: 0.95rem; color: #cbd5e1; margin-bottom: 25px; line-height: 1.6;">
-                يرجى إدخال رمز التفعيل الخاص بك لتشغيل واستخدام برنامج تسيير المحل.
-            </p>
-            
-            <div class="form-group" style="margin-bottom: 20px; text-align: right;">
-                <label for="license-key-input" style="display: block; font-weight: 700; margin-bottom: 8px; font-size: 0.88rem; color: #f1f5f9;">رمز التفعيل:</label>
-                <input type="text" id="license-key-input" placeholder="XXXX-XXXX-XXXX" style="width: 100%; padding: 12px; font-size: 1.2rem; text-align: center; border-radius: 10px; border: 2px solid var(--glass-border); outline: none; background: #1e293b; color: #f1f5f9; font-weight: 700; letter-spacing: 1.5px; direction: ltr;">
-            </div>
-            
-            <button type="button" id="btn-activate-license" style="width: 100%; font-weight: 800; background: var(--accent-gradient); border: none; padding: 14px; border-radius: 12px; cursor: pointer; color: white; font-size: 1.05rem; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); transition: all 0.2s ease;">
-                تفعيل تشغيل البرنامج <i class="fa-solid fa-circle-check" style="margin-right: 6px;"></i>
-            </button>
-            
-            <div style="margin-top: 25px; border-top: 1px solid var(--glass-border); padding-top: 15px; font-size: 0.85rem; color: #94a3b8;">
-                طلب نسخة كاملة أو رمز تفعيل؟ اتصل بالدعم الفني للمطور.
-            </div>
-        </div>
-    </div>
-
     <!-- واجهة تسجيل دخول الموظفين والمدير -->
     <div id="login-screen" class="setup-screen hidden">
         <div class="setup-card glass">
             <div class="setup-logo">
                 <i class="fa-solid fa-user-lock pulse"></i>
             </div>
-            <h2>تسجيل الدخول للنظام</h2>
+            <h2>تسجيل الدخول لنظام lily-pro 🔑</h2>
             <p>الرجاء إدخال اسم المستخدم وكلمة المرور للبدء</p>
             
             <form id="login-form">
                 <div class="form-group">
                     <label for="login-username">اسم المستخدم:</label>
-                    <input type="text" id="login-username" required placeholder="أدخل اسم المستخدم (مثال: admin)..." autocomplete="username">
+                    <input type="text" id="login-username" required placeholder="أدخل اسم المستخدم (TARAK)..." autocomplete="username">
                 </div>
                 
                 <div class="form-group">
@@ -313,7 +314,7 @@
             <div class="setup-logo">
                 <i class="fa-solid fa-shop-lock pulse"></i>
             </div>
-            <h2>مرحباً بك في نظام تسيير المحل الذكي</h2>
+            <h2>مرحباً بك في نظام lily-pro 🌸</h2>
             <p>يرجى إعداد متجرك للبدء الفوري بالتجربة المخصصة</p>
             
             <form id="setup-form">
@@ -360,7 +361,7 @@
     <div id="app-container" class="app-container">
         
         <!-- الشريط العلوي الرئيسي المتكامل (اسم المحل + التنقل + التحكم) -->
-        <header class="app-header glass">
+        <header class="app-header glass" style="display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: flex-start !important; gap: 20px !important;">
             <!-- زر القائمة الجانبية للموبايل -->
             <button type="button" id="btn-mobile-menu" onclick="toggleMobileSidebar()" class="control-btn mobile-menu-trigger" title="القائمة الجانبية" style="display: none;">
                 <i class="fa-solid fa-bars"></i>
@@ -378,7 +379,7 @@
             </div>
 
             <!-- 2. أزرار التنقل الأفقية المدمجة (الوسط) -->
-            <nav class="header-nav">
+            <nav class="header-nav" style="display: flex !important; align-items: center !important; gap: 8px !important; margin-right: 0 !important; margin-left: 0 !important;">
                 <a href="#" class="menu-item active" onclick="switchTab('dashboard'); return false;" data-tab="dashboard">
                     <i class="fa-solid fa-chart-pie"></i>
                     <span>لوحة التحكم</span>
@@ -415,7 +416,7 @@
             </nav>
 
             <!-- 3. أزرار التحكم السريعة الصغيرة والجميلة وتسجيل الخروج (يسار) -->
-            <div class="header-controls">
+            <div class="header-controls" style="display: none !important;">
                 <div class="control-btn" id="btn-open-phone-sync" onclick="openPhoneSyncModal()" title="📲 ربط الهاتف والمزامنة الشبكية عن بعد" style="background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4);">
                     <i class="fa-solid fa-mobile-screen-button" style="color: #38bdf8;"></i>
                 </div>
@@ -448,7 +449,7 @@
                     <button class="sub-nav-item active" onclick="switchDashboardSubTab('cashiers')" style="background: var(--accent-gradient); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
                         <i class="fa-solid fa-users-gear"></i> <span>إدارة الموظفين</span>
                     </button>
-                    <button class="sub-nav-item" onclick="switchDashboardSubTab('permanent-customers')" style="background: transparent; color: var(--text-main); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 8px; font-weight: 700; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
+                    <button class="sub-nav-item" onclick="switchDashboardSubTab('permanent-customers')" style="background: var(--accent-gradient); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
                         <i class="fa-solid fa-users"></i> <span>الزبائن الدائمين</span>
                     </button>
                     <button class="sub-nav-item" onclick="switchDashboardSubTab('suppliers')" style="background: transparent; color: var(--text-main); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 8px; font-weight: 700; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
@@ -460,9 +461,7 @@
                     <button class="sub-nav-item" onclick="switchDashboardSubTab('expenses')" style="background: transparent; color: var(--text-main); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 8px; font-weight: 700; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
                         <i class="fa-solid fa-money-bill-wave"></i> <span>سجل المصاريف</span>
                     </button>
-                    <button class="sub-nav-item" onclick="switchTab('audit')" style="background: transparent; color: var(--text-main); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 8px; font-weight: 700; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
-                        <i class="fa-solid fa-clipboard-check" style="color: #10b981;"></i> <span>الجرد والتسوية</span>
-                    </button>
+                    
 
                     <button class="sub-nav-item" onclick="switchDashboardSubTab('admin-logs')" style="background: transparent; color: var(--text-main); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 8px; font-weight: 700; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
                         <i class="fa-solid fa-list-check"></i> <span>سجل التعديلات</span>
@@ -1524,35 +1523,45 @@
             <section id="tab-settings" class="tab-content">
                 <div class="reports-layout" style="padding: 10px 0;">
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-                        
-                        <!-- بطاقة تبديل الحساب / المحل (متعدد الحسابات) -->
-                        <div class="glass-card" style="border: 1px solid var(--accent-color);">
-                            <h3 style="font-weight: 800; font-size: 1.05rem; color: var(--accent-color); margin-bottom: 12px;">
-                                <i class="fa-solid fa-store"></i> نظام إدارة الحسابات المتعددة (10 محلات مستقلة)
+                        <!-- 0. أدوات التحكم والوصول السريع -->
+                        <div class="glass-card">
+                            <h3 style="font-weight: 800; font-size: 1.05rem; color: var(--accent-color); margin-bottom: 15px;">
+                                <i class="fa-solid fa-screwdriver-wrench"></i> أدوات التحكم والوصول السريع
                             </h3>
-                            <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 12px; line-height: 1.4;">
-                                يمكنك تفعيل وتشغيل حتى 10 حسابات/محلات مستقلة تماماً. كل حساب يحتوي على سلعه، مبيعاته، ديونه وعملائه بشكل منفصل عن بقية الحسابات.
-                            </p>
-                            <div style="margin-bottom: 15px;">
-                                <label for="app-store-switcher" style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;"> اختر الحساب/المحل للتبديل إليه:</label>
-                                <select id="app-store-switcher" onchange="switchActiveStore(this.value)" style="width: 100%; padding: 10px; border-radius: 8px; background: var(--bg-secondary); color: var(--text-main); border: 1px solid var(--glass-border); font-family: inherit; font-size: 0.88rem; outline: none; font-weight: bold; cursor: pointer;">
-                                    <option value="main">🏪 المحل الرئيسي الأول (الافتراضي)</option>
-                                    <option value="store_2">🏪 محل 2</option>
-                                    <option value="store_3">🏪 محل 3</option>
-                                    <option value="store_4">🏪 محل 4</option>
-                                    <option value="store_5">🏪 محل 5</option>
-                                    <option value="store_6">🏪 محل 6</option>
-                                    <option value="store_7">🏪 محل 7</option>
-                                    <option value="store_8">🏪 محل 8</option>
-                                    <option value="store_9">🏪 محل 9</option>
-                                    <option value="store_10">🏪 محل 10</option>
-                                </select>
-                            </div>
-                            <div id="active-store-badge-info" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px; text-align: center; color: #10b981; font-weight: 800; font-size: 0.82rem;">
-                                🟢 أنت تعمل حالياً على: <span id="active-store-display-name">المحل الرئيسي الأول</span>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                                <button type="button" onclick="openPhoneSyncModal()" class="btn-primary" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 12px; font-weight: 700; cursor: pointer; text-align: center; border: 1px solid rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.1); color: #38bdf8; font-size: 0.82rem; font-family: inherit;">
+                                    <i class="fa-solid fa-mobile-screen-button" style="font-size: 1.4rem;"></i>
+                                    <span>📲 ربط الهاتف</span>
+                                </button>
+                                
+                                <button type="button" onclick="const overlay = document.getElementById('license-guard-overlay'); if (overlay) { overlay.style.display = 'flex'; overlay.classList.remove('hidden'); }" class="btn-primary" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 12px; font-weight: 700; cursor: pointer; text-align: center; border: 1px solid rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.1); color: #f59e0b; font-size: 0.82rem; font-family: inherit;">
+                                    <i class="fa-solid fa-key" style="font-size: 1.4rem;"></i>
+                                    <span>🔑 تفعيل الرخصة</span>
+                                </button>
+
+                                <button type="button" id="btn-settings-perf-toggle" class="btn-primary" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 12px; font-weight: 700; cursor: pointer; text-align: center; border: 1px solid rgba(234, 88, 12, 0.35); background: rgba(234, 88, 12, 0.1); color: #ea580c; font-size: 0.82rem; font-family: inherit;">
+                                    <i class="fa-solid fa-bolt" style="font-size: 1.4rem;"></i>
+                                    <span>⚡ نمط السرعة</span>
+                                </button>
+
+                                <button type="button" id="btn-settings-theme-toggle" class="btn-primary" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 12px; font-weight: 700; cursor: pointer; text-align: center; border: 1px solid rgba(167, 139, 250, 0.35); background: rgba(167, 139, 250, 0.1); color: #a78bfa; font-size: 0.82rem; font-family: inherit;">
+                                    <i class="fa-solid fa-moon" style="font-size: 1.4rem;"></i>
+                                    <span>🌗 الوضع المظلم</span>
+                                </button>
+
+                                <button type="button" id="btn-settings-fullscreen-toggle" class="btn-primary" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 12px; font-weight: 700; cursor: pointer; text-align: center; border: 1px solid rgba(16, 185, 129, 0.35); background: rgba(16, 185, 129, 0.1); color: #10b981; font-size: 0.82rem; font-family: inherit;">
+                                    <i class="fa-solid fa-expand" style="font-size: 1.4rem;"></i>
+                                    <span>📺 شاشة كاملة</span>
+                                </button>
+
+                                <button type="button" id="btn-settings-logout" class="btn-primary" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 12px; font-weight: 700; cursor: pointer; text-align: center; border: 1px solid rgba(239, 68, 68, 0.35); background: rgba(239, 68, 68, 0.1); color: #ef4444; font-size: 0.82rem; font-family: inherit;">
+                                    <i class="fa-solid fa-right-from-bracket" style="font-size: 1.4rem;"></i>
+                                    <span>🚪 خروج</span>
+                                </button>
                             </div>
                         </div>
-                        
+
                         <!-- 1. تغيير ألوان المظهر وثيمات البرنامج والأزرار -->
                         <div class="glass-card">
                             <h3 style="font-weight: 800; font-size: 1.05rem; color: var(--accent-color); margin-bottom: 12px;">
@@ -1591,22 +1600,13 @@
                         <!-- 2. كود التفعيل والاشتراك -->
                         <div class="glass-card">
                             <h3 style="font-weight: 800; font-size: 1.1rem; color: var(--accent-color); margin-bottom: 15px;">
-                                <i class="fa-solid fa-key"></i> إضافة كود التفعيل وإدارة الترخيص
+                                <i class="fa-solid fa-key"></i> إدارة ترخيص البرنامج
                             </h3>
                             
-                            <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border); border-radius: 10px; padding: 12px; margin-bottom: 15px;">
-                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">حالة تفعيل الترخيص الحالية:</div>
-                                <strong id="settings-license-status" style="font-size: 0.95rem; color: var(--color-success);">🟢 الترخيص نشط ومفعل</strong>
+                            <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border); border-radius: 10px; padding: 15px;">
+                                <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px;">حالة تفعيل الترخيص الحالية:</div>
+                                <strong id="settings-license-status" style="font-size: 1.05rem; color: var(--color-success); display: block; margin-top: 4px;">🟢 الترخيص نشط ومفعل</strong>
                             </div>
-
-                            <div class="form-group" style="margin-bottom: 12px;">
-                                <label for="settings-license-input" style="display: block; margin-bottom: 6px; font-size: 0.85rem;">أدخل كود تفعيل جديد (أسبوع / شهر / سنة / مدى الحياة):</label>
-                                <input type="text" id="settings-license-input" placeholder="XXXX-XXXX-XXXX" style="width: 100%; padding: 10px; border-radius: 8px; background: var(--bg-secondary); color: var(--text-main); border: 1px solid var(--glass-border); font-family: inherit; font-size: 0.95rem; text-align: center; direction: ltr; font-weight: 700;">
-                            </div>
-                            
-                            <button type="button" onclick="activateLicenseFromSettings()" class="btn-primary" style="width: 100%; font-weight: 700; background: var(--accent-gradient); border: none; padding: 10px; border-radius: 8px; cursor: pointer; color: white;">
-                                <i class="fa-solid fa-check-double"></i> تطبيق كود التفعيل الجديد
-                            </button>
                         </div>
 
                         <!-- 3. تغيير حساب المستخدم وتسجيل الخروج -->
@@ -1921,9 +1921,9 @@
                 إن هذه النسخة تتطلب رمز تفعيل وتشغيل صالح للعمل. يرجى إدخال رمز التفعيل الخاص بك لفتح واجهة المحل واستخدام البرنامج:
             </p>
             <div class="form-group" style="margin-bottom: 15px;">
-                <input type="text" id="license-guard-input" placeholder="XXXX-XXXX-XXXX" style="width: 100%; padding: 12px; border-radius: 10px; background: var(--bg-secondary); color: var(--text-main); border: 2px solid var(--accent-color); font-family: inherit; font-size: 1.1rem; text-align: center; direction: ltr; font-weight: 800; letter-spacing: 2px;">
+                <input type="text" id="license-key-input" placeholder="XXXX-XXXX-XXXX" style="width: 100%; padding: 12px; border-radius: 10px; background: var(--bg-secondary); color: var(--text-main); border: 2px solid var(--accent-color); font-family: inherit; font-size: 1.1rem; text-align: center; direction: ltr; font-weight: 800; letter-spacing: 2px;">
             </div>
-            <button type="button" onclick="activateLicenseGuardFromOverlay()" class="btn-primary" style="width: 100%; padding: 12px; border-radius: 10px; font-weight: 800; font-size: 1rem; background: var(--accent-gradient); border: none; color: white; cursor: pointer; box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);">
+            <button type="button" onclick="window.activateLicenseKey()" class="btn-primary" style="width: 100%; padding: 12px; border-radius: 10px; font-weight: 800; font-size: 1rem; background: var(--accent-gradient); border: none; color: white; cursor: pointer; box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);">
                 تأكيد وتفعيل الاشتراك <i class="fa-solid fa-key"></i>
             </button>
             <div style="margin-top: 20px; font-size: 0.8rem; color: var(--text-muted);">
@@ -2843,10 +2843,6 @@
                     <span>إدارة المخزن</span>
                 </a>
                 
-                <a href="#" class="sidebar-menu-item" onclick="handleSidebarNav('audit')" data-tab="audit" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; color: var(--text-main); text-decoration: none; font-weight: 700; font-size: 0.9rem; transition: all 0.2s ease;">
-                    <i class="fa-solid fa-clipboard-check" style="font-size: 1.1rem; width: 20px; text-align: center; color: #10b981;"></i>
-                    <span>الجرد والتسوية</span>
-                </a>
                 
                 <a href="#" class="sidebar-menu-item" onclick="handleSidebarNav('sales')" data-tab="sales" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; color: var(--text-main); text-decoration: none; font-weight: 700; font-size: 0.9rem; transition: all 0.2s ease;">
                     <i class="fa-solid fa-receipt" style="font-size: 1.1rem; width: 20px; text-align: center;"></i>
@@ -2914,6 +2910,6 @@
         </div>
     </div>
     
-    <script src="app_v1.js" charset="utf-8"></script>
+    <script src="app_v1.js?v=7.0" charset="utf-8"></script>
 </body>
 </html>

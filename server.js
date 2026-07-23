@@ -101,38 +101,24 @@ function updateBatFile(url) {
     }
 }
 
-function getDbFilePath(storeId) {
-    const dbFileName = (storeId === 'main' || !storeId) ? 'database.json' : `database_${storeId}.json`;
-    const dataDir = process.env.DATA_DIR || __dirname;
-    const filePath = path.join(dataDir, dbFileName);
-    if (!fs.existsSync(filePath)) {
-        fs.writeFileSync(filePath, JSON.stringify({
-            storeSettings: { name: storeId === 'main' ? "متجري الذكي" : `محل جديد (${storeId})`, type: "grocery", initialized: false },
-            products: [],
-            transactions: [],
-            debts: [],
-            supplierDebts: [],
-            users: [
-                { id: "admin", displayName: "المدير العام", username: "admin", password: "123", role: "admin", canOverridePrice: true }
-            ]
-        }, null, 2));
-    }
-    return filePath;
+const DB_FILE = path.join(process.env.DATA_DIR || __dirname, 'database.json');
+if (!fs.existsSync(DB_FILE)) {
+    fs.writeFileSync(DB_FILE, JSON.stringify({
+        storeSettings: { name: "متجري الذكي", type: "grocery", initialized: false },
+        products: [],
+        transactions: [],
+        debts: [],
+        supplierDebts: [],
+        users: [
+            { id: "admin", displayName: "TARAK (المدير العام)", username: "tarak", password: "tarak21DZ*", role: "admin", canOverridePrice: true }
+        ]
+    }, null, 2));
 }
 
-let dbVersions = {};
-function getDbVersion(storeId) {
-    const sId = storeId || 'main';
-    if (!dbVersions[sId]) {
-        dbVersions[sId] = Date.now();
-    }
-    return dbVersions[sId];
-}
-function updateDbVersion(storeId) {
-    const sId = storeId || 'main';
-    dbVersions[sId] = Date.now();
-    return dbVersions[sId];
-}
+let dbVersion = Date.now();
+function getDbVersion() { return dbVersion; }
+function updateDbVersion() { dbVersion = Date.now(); return dbVersion; }
+function getDbFilePath() { return DB_FILE; }
 
 // دالة ذكية لمعرفة الـ IP الداخلي الحقيقي لجهاز الكمبيوتر بـ Wi-Fi المحل
 function getLocalIpAddress() {
@@ -192,10 +178,8 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    
     if (pathname === '/api/db' && req.method === 'GET') {
-        const storeId = parsedUrl.searchParams.get('storeId') || 'main';
-        fs.readFile(getDbFilePath(storeId), 'utf8', (err, data) => {
+        fs.readFile(getDbFilePath(), 'utf8', (err, data) => {
             if (err) {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: "فشل قراءة قاعدة البيانات من الخادم" }));
@@ -203,7 +187,7 @@ const server = http.createServer((req, res) => {
             }
             res.writeHead(200, { 
                 'Content-Type': 'application/json; charset=utf-8',
-                'X-DB-Version': getDbVersion(storeId).toString()
+                'X-DB-Version': getDbVersion().toString()
             });
             res.end(data);
         });
@@ -212,16 +196,14 @@ const server = http.createServer((req, res) => {
 
     // فحص نسخة وتحديثات قاعدة البيانات بالملي ثانية
     if (pathname === '/api/sync-check' && req.method === 'GET') {
-        const storeId = parsedUrl.searchParams.get('storeId') || 'main';
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ dbVersion: getDbVersion(storeId) }));
+        res.end(JSON.stringify({ dbVersion: getDbVersion() }));
         return;
     }
 
     // 2. واجهة المراقبة البعيدة واسترجاع ملخص المحل لحظة بلحظة عن بعد للمالك
     if (pathname === '/api/remote-summary' && req.method === 'GET') {
-        const storeId = parsedUrl.searchParams.get('storeId') || 'main';
-        fs.readFile(getDbFilePath(storeId), 'utf8', (err, data) => {
+        fs.readFile(getDbFilePath(), 'utf8', (err, data) => {
             if (err) {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: "فشل قراءة قاعدة البيانات" }));
@@ -252,7 +234,7 @@ const server = http.createServer((req, res) => {
                     todayProfit,
                     lowStockCount,
                     totalProducts: db.products?.length || 0,
-                    dbVersion: getDbVersion(storeId),
+                    dbVersion: getDbVersion(),
                     lastSync: new Date().toISOString()
                 }));
             } catch (e) {
@@ -265,7 +247,6 @@ const server = http.createServer((req, res) => {
 
     // مزامنة وحفظ البيانات الجديدة من أي حاسوب كاشير أو للمدير مع النسخ الاحتياطي التلقائي
     if (pathname === '/api/sync' && req.method === 'POST') {
-        const storeId = parsedUrl.searchParams.get('storeId') || 'main';
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });
         req.on('end', () => {
@@ -273,7 +254,7 @@ const server = http.createServer((req, res) => {
                 const incomingData = JSON.parse(body);
                 
                 // كتابة وحفظ البيانات الجديدة بالملف المشترك
-                fs.writeFile(getDbFilePath(storeId), JSON.stringify(incomingData, null, 2), 'utf8', (err) => {
+                fs.writeFile(getDbFilePath(), JSON.stringify(incomingData, null, 2), 'utf8', (err) => {
                     if (err) {
                         res.writeHead(500, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ error: "فشل حفظ البيانات بالخادم المشترك" }));
@@ -286,11 +267,11 @@ const server = http.createServer((req, res) => {
                     if (!fs.existsSync(backupDir)) {
                         fs.mkdirSync(backupDir, { recursive: true });
                     }
-                    const backupFileName = `backup_${storeId}_${new Date().toISOString().split('T')[0]}.json`;
+                    const backupFileName = `backup_${new Date().toISOString().split('T')[0]}.json`;
                     fs.writeFile(path.join(backupDir, backupFileName), JSON.stringify(incomingData, null, 2), () => {});
 
                     // تحديث رقم الإصدار لتنبيه بقية الأجهزة فوراً للتحديث!
-                    const newVersion = updateDbVersion(storeId);
+                    const newVersion = updateDbVersion();
                     
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ success: true, dbVersion: newVersion }));
@@ -304,6 +285,74 @@ const server = http.createServer((req, res) => {
     }
 
     // تسجيل الأخطاء من متصفح العميل لتشخيص المشاكل البعيدة
+    
+    // إنشاء متجر جديد مخصص لشريك / صديق (خاص بالمدير العام)
+    if (pathname === '/api/create-store' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk.toString(); });
+        req.on('end', () => {
+            try {
+                const { code, name, pass } = JSON.parse(body);
+                const cleanCode = code.replace(/[^a-z0-9_]/g, '');
+
+                if (!cleanCode || !name || !pass) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: "حقول غير صالحة" }));
+                    return;
+                }
+
+                const dataDir = process.env.DATA_DIR || __dirname;
+                const dbPath = path.join(dataDir, `database_${cleanCode}.json`);
+
+                // كتابة ملف قاعدة بيانات مستقل للمتجر الجديد
+                const initialDb = {
+                    storeSettings: { name: name, type: "grocery", initialized: true },
+                    products: [],
+                    transactions: [],
+                    debts: [],
+                    supplierDebts: [],
+                    users: [
+                        { id: "admin", displayName: "المدير العام", username: "admin", password: pass, role: "admin", canOverridePrice: true }
+                    ]
+                };
+
+                fs.writeFileSync(dbPath, JSON.stringify(initialDb, null, 2), 'utf8');
+
+                // تسجيل المتجر الجديد في قائمة السجل العام للشركاء
+                const registryPath = path.join(dataDir, 'stores_registry.json');
+                let registry = [];
+                if (fs.existsSync(registryPath)) {
+                    registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+                }
+                if (!registry.some(s => s.code === cleanCode)) {
+                    registry.push({ code: cleanCode, name });
+                    fs.writeFileSync(registryPath, JSON.stringify(registry, null, 2), 'utf8');
+                }
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, code: cleanCode }));
+            } catch (e) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: e.message }));
+            }
+        });
+        return;
+    }
+
+    // جلب قائمة المتاجر الخاصة بالشركاء (خاص بالمدير العام)
+    if (pathname === '/api/list-stores' && req.method === 'GET') {
+        const dataDir = process.env.DATA_DIR || __dirname;
+        const registryPath = path.join(dataDir, 'stores_registry.json');
+        let registry = [];
+        if (fs.existsSync(registryPath)) {
+            registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(registry));
+        return;
+    }
+
+
     if (pathname === '/api/log-error' && req.method === 'POST') {
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });

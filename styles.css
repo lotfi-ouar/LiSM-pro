@@ -1680,7 +1680,7 @@ button, input, select {
     overflow: hidden !important;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
     .pos-layout, .pos-layout-new {
         grid-template-columns: 1fr !important;
         height: auto !important;
@@ -1726,7 +1726,7 @@ button, input, select {
     overflow: hidden !important;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
     .pos-layout-split {
         grid-template-columns: 1fr !important;
         height: auto !important;
@@ -1779,7 +1779,7 @@ button, input, select {
     overflow: hidden !important;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 768px) {
     .pos-layout-split {
         grid-template-columns: 1fr !important;
         height: auto !important;
@@ -1893,7 +1893,7 @@ button, input, select {
     overflow: hidden !important;
 }
 
-@media (max-width: 1150px) {
+@media (max-width: 768px) {
     .pos-layout-split {
         grid-template-columns: 1fr !important;
         height: auto !important;
@@ -2008,7 +2008,7 @@ button, input, select {
     overflow: hidden !important;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 768px) {
     .pos-layout-split {
         grid-template-columns: 1fr !important;
         height: auto !important;
@@ -2753,4 +2753,54 @@ html, body {
     0% { top: 6%; opacity: 0.7; }
     50% { opacity: 1; }
     100% { top: 92%; opacity: 0.7; }
+}
+
+
+/* أنماط زر السرعة الفائقة وتأثير التفعيل */
+.control-btn.perf-active {
+    background: rgba(245, 158, 11, 0.25) !important;
+    border-color: rgba(245, 158, 11, 0.5) !important;
+}
+.control-btn.perf-active i {
+    color: #f59e0b !important;
+    text-shadow: 0 0 8px rgba(245, 158, 11, 0.6) !important;
+}
+
+/* تأثير نمط السرعة الفائقة لتعطيل الفلاتر الثقيلة والتأثيرات لتسريع الكاشير */
+body.perf-mode * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition: none !important;
+    animation: none !important;
+}
+body.perf-mode .glass, 
+body.perf-mode .glass-card, 
+body.perf-mode .setup-screen, 
+body.perf-mode .modal-overlay,
+body.perf-mode .camera-scanner-wrapper {
+    background: #0f172a !important; /* خلفية داكنة صلبة ومستقرة للأداء العالي */
+}
+
+
+/* محاكاة الشاشة الكاملة للهواتف والآيفون */
+body.simulated-fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 999999 !important;
+}
+body.simulated-fullscreen #app-container {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 999999 !important;
 }
