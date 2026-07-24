@@ -16,7 +16,7 @@
     <script>
         // فرض تحديث الذاكرة المحلية للمتصفح لتجاوز الكاش تماماً
         (function() {
-            const CURRENT_CODE_VERSION = "7.0";
+            const CURRENT_CODE_VERSION = "17.0";
             if (localStorage.getItem("app_code_version") !== CURRENT_CODE_VERSION) {
                 localStorage.setItem("app_code_version", CURRENT_CODE_VERSION);
                 localStorage.removeItem("smart_shop_state");
@@ -223,7 +223,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <!-- ملف التنسيقات الخاص بنا -->
-    <link rel="stylesheet" href="styles.css?v=7.0">
+    <link rel="stylesheet" href="styles.css?v=17.0">
 
     <!-- تنسيقات نافذة الباركود - ألوان ونصوص واضحة -->
     <style>
@@ -2298,8 +2298,7 @@
             </div>
         </div>
         <div class="receipt-footer" style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 8px; text-align: center;">
-            <p style="font-weight: 800; font-size: 0.85rem; margin-bottom: 4px;">شكراً لزيارتكم ونتمنى رؤيتكم مجدداً! ❤️</p>
-            <p style="font-size: 0.72rem; color: #555;">برنامج تسيير المحل - المطور: 0770546860 / 0658255603</p>
+            <p id="receipt-footer-msg" style="font-weight: 800; font-size: 0.85rem; margin-bottom: 4px;">شكراً لزيارتكم ونتمنى رؤيتكم مجدداً! ❤️</p>
         </div>
     </div>
 
@@ -2910,6 +2909,6 @@
         </div>
     </div>
     
-    <script src="app_v1.js?v=7.0" charset="utf-8"></script>
+    <script src="app_v1.js?v=17.0" charset="utf-8"></script>
 </body>
 </html>

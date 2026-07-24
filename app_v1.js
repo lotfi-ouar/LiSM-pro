@@ -6977,6 +6977,9 @@ async function initDatabaseSync() {
 
                 localStorage.setItem("smart_shop_state", JSON.stringify(appState));
                 
+                // تحديث رسالة الإيصال فور المزامنة مع السيرفر
+                updateReceiptFooterUI(appState.storeSettings.receiptFooterMessage);
+                
                 // إعادة فحص الترخيص فور جلب البيانات من السيرفر لفك القفل تلقائياً دون طلب كود جديد
                 if (typeof window.checkAppLicense === 'function') {
                     window.checkAppLicense();
@@ -7905,155 +7908,143 @@ function refreshStoreLogoPreview(base64) {
 }
 
 function applyPrintStyles() {
-
     let styleEl = document.getElementById("dynamic-print-styles");
-
     if (!styleEl) {
-
         styleEl = document.createElement("style");
-
         styleEl.id = "dynamic-print-styles";
-
         document.head.appendChild(styleEl);
-
     }
 
     const printerType = appState.storeSettings.printerType || "A4";
-
     let css = "";
 
     if (printerType === "58mm") {
-
         css = `
-
             @media print {
-
                 @page { size: 58mm auto; margin: 0; }
-
                 html, body {
-
                     width: 58mm !important;
-
-                    font-size: 9px !important;
-
+                    font-size: 10px !important;
                     padding: 0 !important;
-
                     margin: 0 !important;
-
+                    direction: rtl !important;
+                    text-align: center !important;
+                    background: #ffffff !important;
+                    color: #000000 !important;
                 }
-
                 .receipt-print-section {
-
-                    width: 58mm !important;
-
-                    padding: 2mm !important;
-
-                    font-size: 9px !important;
-
-                }
-
-                .receipt-items-table th, .receipt-items-table td {
-
-                    font-size: 9px !important;
-
-                }
-
-            }
-
-        `;
-
-    } else if (printerType === "80mm") {
-
-        css = `
-
-            @media print {
-
-                @page { size: 80mm auto; margin: 0; }
-
-                html, body {
-
-                    width: 80mm !important;
-
-                    font-size: 11px !important;
-
+                    width: 52mm !important; /* هامش أمان لمنع قص المجموع باليسار */
+                    margin: 0 auto !important;
                     padding: 0 !important;
-
-                    margin: 0 !important;
-
+                    font-size: 10px !important;
+                    direction: rtl !important;
+                    text-align: center !important;
+                    background: #ffffff !important;
                 }
-
-                .receipt-print-section {
-
-                    width: 80mm !important;
-
-                    padding: 4mm !important;
-
-                    font-size: 11px !important;
-
+                #receipt-print-section *, .receipt-print-section * {
+                    color: #000000 !important;
                 }
-
-                .receipt-items-table th, .receipt-items-table td {
-
-                    font-size: 11px !important;
-
+                .receipt-header, .receipt-footer, .receipt-totals {
+                    text-align: center !important;
+                    direction: rtl !important;
                 }
-
-            }
-
-        `;
-
-    } else {
-
-        css = `
-
-            @media print {
-
-                @page { size: A4 portrait; margin: 15mm 10mm 15mm 10mm; }
-
-                html, body {
-
-                    width: auto !important;
-
-                    font-size: 14px !important;
-
-                    padding: 0 !important;
-
-                    margin: 0 !important;
-
+                .receipt-total-row {
+                    display: flex !important;
+                    justify-content: center !important;
+                    gap: 8px !important;
+                    margin-bottom: 4px !important;
                 }
-
-                .receipt-print-section {
-
+                .receipt-items-table {
                     width: 100% !important;
-
-                    max-width: 180mm !important;
-
-                    padding: 10mm !important;
-
-                    font-size: 14px !important;
-
-                    border: 1px solid #ccc;
-
-                    border-radius: 8px;
-
+                    direction: rtl !important;
                 }
-
                 .receipt-items-table th, .receipt-items-table td {
-
-                    font-size: 14px !important;
-
-                    padding: 8px !important;
-
+                    font-size: 9px !important;
+                    direction: rtl !important;
+                    padding: 4px 1px !important;
                 }
-
             }
-
         `;
-
+    } else if (printerType === "80mm") {
+        css = `
+            @media print {
+                @page { size: 80mm auto; margin: 0; }
+                html, body {
+                    width: 80mm !important;
+                    font-size: 12px !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    direction: rtl !important;
+                    text-align: center !important;
+                    background: #ffffff !important;
+                    color: #000000 !important;
+                }
+                .receipt-print-section {
+                    width: 72mm !important; /* هامش أمان لمنع قص المجموع باليسار */
+                    margin: 0 auto !important;
+                    padding: 0 !important;
+                    font-size: 12px !important;
+                    direction: rtl !important;
+                    text-align: center !important;
+                    background: #ffffff !important;
+                }
+                #receipt-print-section *, .receipt-print-section * {
+                    color: #000000 !important;
+                }
+                .receipt-header, .receipt-footer, .receipt-totals {
+                    text-align: center !important;
+                    direction: rtl !important;
+                }
+                .receipt-total-row {
+                    display: flex !important;
+                    justify-content: center !important;
+                    gap: 8px !important;
+                    margin-bottom: 4px !important;
+                }
+                .receipt-items-table {
+                    width: 100% !important;
+                    direction: rtl !important;
+                }
+                .receipt-items-table th, .receipt-items-table td {
+                    font-size: 11px !important;
+                    direction: rtl !important;
+                    padding: 4px 2px !important;
+                }
+            }
+        `;
+    } else {
+        css = `
+            @media print {
+                @page { size: A4 portrait; margin: 15mm 10mm 15mm 10mm; }
+                html, body {
+                    width: auto !important;
+                    font-size: 14px !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    background: #ffffff !important;
+                    color: #000000 !important;
+                }
+                .receipt-print-section {
+                    width: 100% !important;
+                    max-width: 180mm !important;
+                    padding: 10mm !important;
+                    font-size: 14px !important;
+                    border: 1px solid #ccc;
+                    border-radius: 8px;
+                    background: #ffffff !important;
+                }
+                #receipt-print-section *, .receipt-print-section * {
+                    color: #000000 !important;
+                }
+                .receipt-items-table th, .receipt-items-table td {
+                    font-size: 14px !important;
+                    padding: 8px !important;
+                }
+            }
+        `;
     }
 
     styleEl.innerHTML = css;
-
 }
 
 function setupStoreSettingsAndChartsListeners() {
