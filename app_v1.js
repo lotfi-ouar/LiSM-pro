@@ -11403,7 +11403,7 @@ function updateLicenseUIStatus(text) {
 
 // أكواد تفعيل رخصة البرنامج الـ 40 المعتمدة (ذات الاستخدام الواحد)
 const LICENSE_CODES = {
-    // 10 أكواد تفعيل لمدة أسبوع (7 أيام)
+    // 10 أكواد تفعيل لمدة أسبوع (7 أيام) - المجموعة الأولى (المستهلكة بالتجريب)
     "TARAK-WK-1A2B-3C4D": { days: 7, type: "week" },
     "TARAK-WK-5E6F-7G8H": { days: 7, type: "week" },
     "TARAK-WK-9J0K-1L2M": { days: 7, type: "week" },
@@ -11414,6 +11414,18 @@ const LICENSE_CODES = {
     "TARAK-WK-9E0F-1G2H": { days: 7, type: "week" },
     "TARAK-WK-3J4K-5L6M": { days: 7, type: "week" },
     "TARAK-WK-7N8P-9Q0R": { days: 7, type: "week" },
+
+    // 10 أكواد تفعيل جديدة كلياً لمدة أسبوع (7 أيام) - المجموعة الثانية (النشطة والجاهزة للاستعمال)
+    "TARAK-WK-2W3X-4Y5Z": { days: 7, type: "week" },
+    "TARAK-WK-6A7B-8C9D": { days: 7, type: "week" },
+    "TARAK-WK-2E3F-4G5H": { days: 7, type: "week" },
+    "TARAK-WK-6J7K-8L9M": { days: 7, type: "week" },
+    "TARAK-WK-2N3P-4Q5R": { days: 7, type: "week" },
+    "TARAK-WK-6S7T-8U9V": { days: 7, type: "week" },
+    "TARAK-WK-2W3A-4B5C": { days: 7, type: "week" },
+    "TARAK-WK-6D7E-8F9G": { days: 7, type: "week" },
+    "TARAK-WK-2H3J-4K5L": { days: 7, type: "week" },
+    "TARAK-WK-6M7N-8P9Q": { days: 7, type: "week" },
 
     // 10 أكواد تفعيل لمدة شهر (30 يوم)
     "TARAK-MO-1X2Y-3Z4A": { days: 30, type: "month" },
@@ -11490,6 +11502,9 @@ window.activateLicenseKey = async function() {
     // إضافة الكود لقائمة الأكواد المستخدمة لمنع إعادة تشغيله
     appState.storeSettings.usedLicenseCodes.push(key);
 
+    // حفظ نسخة مستمرة في ذاكرة المتصفح الصلبة (على الهارد ديسك أو ذاكرة الهاتف) لا تحذف أبداً
+    localStorage.setItem("lily_pro_activated_license", JSON.stringify(appState.storeSettings.license));
+
     // فرض تسجيل الخروج عند تفعيل البرنامج لأول مرة ليتم مطالبتهم ببيانات TARAK
     appState.currentUser = null;
 
@@ -11552,8 +11567,9 @@ window.checkAppLicense = function() {
     if (localLicenseStr) {
         try {
             license = JSON.parse(localLicenseStr);
-            // مزامنة حالة الترخيص مجدداً مع كائن التطبيق
+            // مزامنة حالة الترخيص مجدداً مع كائن التطبيق وحفظه بالذاكرة المحلية للمتصفح
             appState.storeSettings.license = license;
+            saveToLocalStorage();
         } catch (e) {
             console.error("Error parsing local license:", e);
         }
@@ -11561,6 +11577,10 @@ window.checkAppLicense = function() {
     
     if (!license) {
         license = appState.storeSettings.license || { activated: false };
+        // حفظ الترخيص تلقائياً في ذاكرة الهاتف/الكمبيوتر الصلبة إذا كان مفعلاً مسبقاً في السيرفر لضمان استمراريته
+        if (license && license.activated) {
+            localStorage.setItem("lily_pro_activated_license", JSON.stringify(license));
+        }
     }
 
     // إذا لم يكن البرنامج مفعلاً
