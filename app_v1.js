@@ -7373,6 +7373,17 @@ function previewBarcodeLabels() {
 
 // ====== طباعة الملصقات ======
 
+
+// تصدير دوال الباركود لـ window لمنع أخطاء ReferenceError
+window.generateBarcodesPrintWindow = function() {
+    printBarcodeLabels();
+};
+window.printBarcodeLabels = printBarcodeLabels;
+window.previewBarcodeLabels = previewBarcodeLabels;
+window.closeBarcodeModal = closeBarcodeModal;
+window.switchBarcodeTab = switchBarcodeTab;
+window.bcGenerateRandomBarcode = bcGenerateRandomBarcode;
+
 function printBarcodeLabels() {
 
     if (_barcodeActiveTab === 'custom') {
@@ -11534,7 +11545,23 @@ window.activateLicenseFromSettings = function() {
 window.checkAppLicense = function() {
     const overlay = document.getElementById("license-guard-overlay");
     if (!appState.storeSettings) appState.storeSettings = {};
-    const license = appState.storeSettings.license || { activated: false };
+    
+    // استرجاع الترخيص ذاتياً من ذاكرة المتصفح المستقلة (الهارد ديسك / الهاتف)
+    let license = null;
+    const localLicenseStr = localStorage.getItem("lily_pro_activated_license");
+    if (localLicenseStr) {
+        try {
+            license = JSON.parse(localLicenseStr);
+            // مزامنة حالة الترخيص مجدداً مع كائن التطبيق
+            appState.storeSettings.license = license;
+        } catch (e) {
+            console.error("Error parsing local license:", e);
+        }
+    }
+    
+    if (!license) {
+        license = appState.storeSettings.license || { activated: false };
+    }
 
     // إذا لم يكن البرنامج مفعلاً
     if (!license.activated) {
