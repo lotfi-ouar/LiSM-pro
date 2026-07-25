@@ -13231,4 +13231,4 @@ window.submitMobileManualBarcode = function() {
     }
     window.closeMobileCameraScanner();
 };
-
+
