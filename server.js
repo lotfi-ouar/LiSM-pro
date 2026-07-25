@@ -1,4 +1,5 @@
 import http from 'http';
+import https from 'https';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -102,7 +103,7 @@ function updateBatFile(url) {
 }
 
 const FIREBASE_CONFIG_PATH = path.join(process.env.DATA_DIR || __dirname, 'firebase_config.json');
-const https = require('https');
+// const https = require('https');
 
 // 1. تحميل إعدادات فايربيس السحابية إن وجدت (عبر المتغيرات البيئية أو ملف الإعدادات)
 let firebaseConfig = null;
