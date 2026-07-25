@@ -1,4 +1,5 @@
 import http from 'http';
+import https from 'https';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -101,10 +102,42 @@ function updateBatFile(url) {
     }
 }
 
-const DB_FILE = path.join(process.env.DATA_DIR || __dirname, 'database.json');
-if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({
-        storeSettings: { name: "متجري الذكي", type: "grocery", initialized: false },
+const FIREBASE_CONFIG_PATH = path.join(process.env.DATA_DIR || __dirname, 'firebase_config.json');
+
+// 1. تحميل إعدادات فايربيس السحابية إن وجدت (عبر المتغيرات البيئية أو ملف الإعدادات)
+let firebaseConfig = null;
+if (process.env.FIREBASE_DB_URL) {
+    firebaseConfig = {
+        databaseURL: process.env.FIREBASE_DB_URL,
+        databaseSecret: process.env.FIREBASE_DB_SECRET || ''
+    };
+} else if (fs.existsSync(FIREBASE_CONFIG_PATH)) {
+    try {
+        firebaseConfig = JSON.parse(fs.readFileSync(FIREBASE_CONFIG_PATH, 'utf8'));
+    } catch (e) {
+        console.error("⚠️ خطأ في قراءة ملف firebase_config.json:", e.message);
+    }
+}
+
+if (firebaseConfig && firebaseConfig.databaseURL && firebaseConfig.databaseURL.trim() !== '') {
+    console.log("☁️ [تم التفعيل] قاعدة البيانات السحابية نشطة (Firebase Cloud Database Enabled)");
+    console.log(`🔗 رابط الاتصال السحابي: ${firebaseConfig.databaseURL}`);
+} else {
+    console.log("💾 [وضع الهارد ديسك] لم يتم إعداد قاعدة بيانات سحابية. سيتم الحفظ محلياً في الكمبيوتر.");
+}
+
+// دالة تحديد مسار الملف المحلي حسب المحل
+function getDbFilePath(storeId) {
+    const sId = storeId || 'main';
+    const dbFileName = (sId === 'main') ? 'database.json' : `database_${sId}.json`;
+    const dataDir = process.env.DATA_DIR || __dirname;
+    return path.join(dataDir, dbFileName);
+}
+
+// دالة كتابة القيمة الافتراضية
+function writeInitialLocalDb(filePath, storeId) {
+    const initialDb = {
+        storeSettings: { name: storeId === 'main' ? "متجري الذكي" : `محل جديد (${storeId})`, type: "grocery", initialized: false },
         products: [],
         transactions: [],
         debts: [],
@@ -112,13 +145,176 @@ if (!fs.existsSync(DB_FILE)) {
         users: [
             { id: "admin", displayName: "TARAK (المدير العام)", username: "tarak", password: "tarak21DZ*", role: "admin", canOverridePrice: true }
         ]
-    }, null, 2));
+    };
+    fs.writeFileSync(filePath, JSON.stringify(initialDb, null, 2), 'utf8');
+    return initialDb;
 }
 
-let dbVersion = Date.now();
-function getDbVersion() { return dbVersion; }
-function updateDbVersion() { dbVersion = Date.now(); return dbVersion; }
-function getDbFilePath() { return DB_FILE; }
+// إدارة إصدارات قاعدة البيانات بالملي ثانية للمزامنة الفورية
+let dbVersions = {};
+function getDbVersion(storeId) {
+    const sId = storeId || 'main';
+    if (!dbVersions[sId]) {
+        dbVersions[sId] = Date.now();
+    }
+    return dbVersions[sId];
+}
+function updateDbVersion(storeId) {
+    const sId = storeId || 'main';
+    dbVersions[sId] = Date.now();
+    return dbVersions[sId];
+}
+
+// دالة مساعدة لعمل طلب HTTPS GET بطريقة متوافقة تماماً مع ES Modules ونود
+function httpsGetJson(url) {
+    return new Promise((resolve, reject) => {
+        const req = https.get(url, { timeout: 8000 }, (res) => {
+            let data = '';
+            res.on('data', chunk => { data += chunk; });
+            res.on('end', () => {
+                if (res.statusCode >= 200 && res.statusCode < 300) {
+                    try {
+                        resolve(JSON.parse(data));
+                    } catch (e) {
+                        resolve(null);
+                    }
+                } else {
+                    reject(new Error(`HTTP Status ${res.statusCode}`));
+                }
+            });
+        });
+        req.on('error', err => reject(err));
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('Timeout'));
+        });
+    });
+}
+
+// دالة مساعدة لعمل طلب HTTPS PUT بطريقة متوافقة تماماً مع ES Modules ونود
+function httpsPutJson(url, payload) {
+    return new Promise((resolve, reject) => {
+        const parsedUrl = new URL(url);
+        const bodyStr = JSON.stringify(payload);
+        
+        const options = {
+            hostname: parsedUrl.hostname,
+            path: parsedUrl.pathname + parsedUrl.search,
+            method: 'PUT',
+            timeout: 10000,
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(bodyStr)
+            }
+        };
+
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => { data += chunk; });
+            res.on('end', () => {
+                if (res.statusCode >= 200 && res.statusCode < 300) {
+                    resolve(data);
+                } else {
+                    reject(new Error(`HTTP Status ${res.statusCode}`));
+                }
+            });
+        });
+
+        req.on('error', err => reject(err));
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('Timeout'));
+        });
+
+        req.write(bodyStr);
+        req.end();
+    });
+}
+
+// دالة ذكية لقراءة قاعدة البيانات (سحابياً من Firebase أو محلياً من الهارد ديسك)
+async function readDatabase(storeId) {
+    const sId = storeId || 'main';
+    const localPath = getDbFilePath(sId);
+
+    // أ. محاولة القراءة من فايربيس السحابي أولاً
+    if (firebaseConfig && firebaseConfig.databaseURL && firebaseConfig.databaseURL.trim() !== '') {
+        try {
+            let url = `${firebaseConfig.databaseURL.replace(/\/$/, '')}/stores/${sId}.json`;
+            if (firebaseConfig.databaseSecret && firebaseConfig.databaseSecret.trim() !== '') {
+                url += `?auth=${firebaseConfig.databaseSecret}`;
+            }
+
+            const cloudData = await httpsGetJson(url);
+            if (cloudData) {
+                // تحديث النسخة الاحتياطية المحلية في الكمبيوتر بصمت للأمان
+                fs.writeFile(localPath, JSON.stringify(cloudData, null, 2), 'utf8', () => {});
+                return cloudData;
+            }
+        } catch (e) {
+            console.warn(`⚠️ تعذر جلب البيانات من السحاب لـ [${sId}] (شبكة ضعيفة/مقطوعة). جاري القراءة من القرص المحلي: ${e.message}`);
+        }
+    }
+
+    // ب. القراءة الاحتياطية المحلية من الهارد ديسك (أو إنشاء ملف جديد إذا لم يوجد)
+    if (!fs.existsSync(localPath)) {
+        return writeInitialLocalDb(localPath, sId);
+    }
+
+    return new Promise((resolve, reject) => {
+        fs.readFile(localPath, 'utf8', (err, data) => {
+            if (err) {
+                resolve(writeInitialLocalDb(localPath, sId));
+            } else {
+                try {
+                    resolve(JSON.parse(data));
+                } catch (e) {
+                    resolve(writeInitialLocalDb(localPath, sId));
+                }
+            }
+        });
+    });
+}
+
+// دالة ذكية لكتابة وحفظ البيانات (محلياً بالكامل + سحابياً بفايربيس)
+async function writeDatabase(storeId, incomingData) {
+    const sId = storeId || 'main';
+    const localPath = getDbFilePath(sId);
+
+    // 1. الحفظ المحلي فوراً في الهارد ديسك (الأمان الدائم بدون إنترنت)
+    await new Promise((resolve, reject) => {
+        fs.writeFile(localPath, JSON.stringify(incomingData, null, 2), 'utf8', (err) => {
+            if (err) reject(err);
+            else resolve();
+        });
+    });
+
+    // إنشاء نسخة احتياطية إضافية يومية في مجلد backups
+    try {
+        const dataDir = process.env.DATA_DIR || __dirname;
+        const backupDir = path.join(dataDir, 'backups');
+        if (!fs.existsSync(backupDir)) {
+            fs.mkdirSync(backupDir, { recursive: true });
+        }
+        const backupFileName = `backup_${sId}_${new Date().toISOString().split('T')[0]}.json`;
+        fs.writeFile(path.join(backupDir, backupFileName), JSON.stringify(incomingData, null, 2), () => {});
+    } catch (e) {
+        console.error("⚠️ خطأ حفظ النسخة الاحتياطية المحلية:", e.message);
+    }
+
+    // 2. الحفظ السحابي بـ Firebase إن وجد اتصال متاح
+    if (firebaseConfig && firebaseConfig.databaseURL && firebaseConfig.databaseURL.trim() !== '') {
+        try {
+            let url = `${firebaseConfig.databaseURL.replace(/\/$/, '')}/stores/${sId}.json`;
+            if (firebaseConfig.databaseSecret && firebaseConfig.databaseSecret.trim() !== '') {
+                url += `?auth=${firebaseConfig.databaseSecret}`;
+            }
+            
+            await httpsPutJson(url, incomingData);
+        } catch (e) {
+            console.warn(`⚠️ تعذر الاتصال بـ Firebase لمزامنة التغييرات (تم الحفظ محلياً وسيتم الرفع لاحقاً): ${e.message}`);
+        }
+    }
+}
 
 // دالة ذكية لمعرفة الـ IP الداخلي الحقيقي لجهاز الكمبيوتر بـ Wi-Fi المحل
 function getLocalIpAddress() {
@@ -153,6 +349,7 @@ const server = http.createServer((req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Expose-Headers', 'X-DB-Version');
 
     if (req.method === 'OPTIONS') {
         res.writeHead(200);
@@ -179,38 +376,35 @@ const server = http.createServer((req, res) => {
     }
 
     if (pathname === '/api/db' && req.method === 'GET') {
-        fs.readFile(getDbFilePath(), 'utf8', (err, data) => {
-            if (err) {
+        const storeId = parsedUrl.searchParams.get('storeId') || 'main';
+        readDatabase(storeId)
+            .then(data => {
+                res.writeHead(200, { 
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'X-DB-Version': getDbVersion(storeId).toString()
+                });
+                res.end(JSON.stringify(data));
+            })
+            .catch(err => {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: "فشل قراءة قاعدة البيانات من الخادم" }));
-                return;
-            }
-            res.writeHead(200, { 
-                'Content-Type': 'application/json; charset=utf-8',
-                'X-DB-Version': getDbVersion().toString()
             });
-            res.end(data);
-        });
         return;
     }
 
     // فحص نسخة وتحديثات قاعدة البيانات بالملي ثانية
     if (pathname === '/api/sync-check' && req.method === 'GET') {
+        const storeId = parsedUrl.searchParams.get('storeId') || 'main';
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ dbVersion: getDbVersion() }));
+        res.end(JSON.stringify({ dbVersion: getDbVersion(storeId) }));
         return;
     }
 
     // 2. واجهة المراقبة البعيدة واسترجاع ملخص المحل لحظة بلحظة عن بعد للمالك
     if (pathname === '/api/remote-summary' && req.method === 'GET') {
-        fs.readFile(getDbFilePath(), 'utf8', (err, data) => {
-            if (err) {
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: "فشل قراءة قاعدة البيانات" }));
-                return;
-            }
-            try {
-                const db = JSON.parse(data);
+        const storeId = parsedUrl.searchParams.get('storeId') || 'main';
+        readDatabase(storeId)
+            .then(db => {
                 const todayStr = new Date().toDateString();
                 let todaySalesTotal = 0;
                 let todaySalesCount = 0;
@@ -234,48 +428,35 @@ const server = http.createServer((req, res) => {
                     todayProfit,
                     lowStockCount,
                     totalProducts: db.products?.length || 0,
-                    dbVersion: getDbVersion(),
+                    dbVersion: getDbVersion(storeId),
                     lastSync: new Date().toISOString()
                 }));
-            } catch (e) {
+            })
+            .catch(err => {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: "خطأ تحليل قاعدة البيانات" }));
-            }
-        });
+            });
         return;
     }
 
     // مزامنة وحفظ البيانات الجديدة من أي حاسوب كاشير أو للمدير مع النسخ الاحتياطي التلقائي
     if (pathname === '/api/sync' && req.method === 'POST') {
+        const storeId = parsedUrl.searchParams.get('storeId') || 'main';
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });
         req.on('end', () => {
             try {
                 const incomingData = JSON.parse(body);
-                
-                // كتابة وحفظ البيانات الجديدة بالملف المشترك
-                fs.writeFile(getDbFilePath(), JSON.stringify(incomingData, null, 2), 'utf8', (err) => {
-                    if (err) {
+                writeDatabase(storeId, incomingData)
+                    .then(() => {
+                        const newVersion = updateDbVersion(storeId);
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: true, dbVersion: newVersion }));
+                    })
+                    .catch(err => {
                         res.writeHead(500, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ error: "فشل حفظ البيانات بالخادم المشترك" }));
-                        return;
-                    }
-                    
-                    // إنشاء نسخة احتياطية دورية في مجلد backups
-                    const dataDir = process.env.DATA_DIR || __dirname;
-                    const backupDir = path.join(dataDir, 'backups');
-                    if (!fs.existsSync(backupDir)) {
-                        fs.mkdirSync(backupDir, { recursive: true });
-                    }
-                    const backupFileName = `backup_${new Date().toISOString().split('T')[0]}.json`;
-                    fs.writeFile(path.join(backupDir, backupFileName), JSON.stringify(incomingData, null, 2), () => {});
-
-                    // تحديث رقم الإصدار لتنبيه بقية الأجهزة فوراً للتحديث!
-                    const newVersion = updateDbVersion();
-                    
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ success: true, dbVersion: newVersion }));
-                });
+                    });
             } catch (e) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: "بيانات JSON غير صالحة" }));
