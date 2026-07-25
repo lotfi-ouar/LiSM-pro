@@ -172,6 +172,7 @@ function loadFromLocalStorage() {
             if (!appState.supplierDebts) appState.supplierDebts = [];
 
             if (!appState.customers) appState.customers = [];
+            if (!appState.deletedProductIds) appState.deletedProductIds = [];
 
             // ترحيل الديون العادية للزبائن العابرين السابقة إلى قائمة الزبائن الدائمين الموحدة
             if (appState.debts && appState.debts.length > 0) {
