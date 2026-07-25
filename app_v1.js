@@ -6915,7 +6915,7 @@ function updateEmployeeOfTheWeekUI() {
 
 let lanSyncMode = false;
 let isSyncing = false;
-let currentDbVersion = 0;
+let currentDbVersion = Number(localStorage.getItem("smart_shop_db_version") || 0);
 let syncServerUrl = '';
 
 function getSyncServerBaseUrl() {
@@ -6942,8 +6942,10 @@ async function initDatabaseSync() {
         const res = await fetch(syncServerUrl + '/api/db' + getStoreQueryParam(), { cache: 'no-store' });
         if (res.ok) {
             const data = await res.json();
-            const serverVersion = res.headers.get('X-DB-Version') || Date.now();
-            currentDbVersion = Number(serverVersion);
+            const serverVersionHeader = res.headers.get('X-DB-Version') || Date.now();
+            const serverVersion = Number(serverVersionHeader);
+            currentDbVersion = serverVersion;
+            localStorage.setItem("smart_shop_db_version", currentDbVersion);
             lanSyncMode = true;
 
             // تهيئة حقل الاختيار واللوحة النشطة للمحل في الإعدادات
@@ -6970,24 +6972,35 @@ async function initDatabaseSync() {
             if (data && (Array.isArray(data.products) || Array.isArray(data.users))) {
                 if (data.storeSettings) appState.storeSettings = data.storeSettings;
                 
+                // قراءة إصدار العميل المحلي المخزن مقارنة بالسيرفر
+                const localVersion = Number(localStorage.getItem("smart_shop_db_version") || 0);
+                const serverVersion = Number(serverVersionHeader || data.dbVersion || Date.now());
+                const isServerNewer = serverVersion > localVersion;
+
                 // دمج ذكي للسلع لمنع ضياع السلع المضافة محلياً/أوفلاين قبل اكتمال المزامنة
                 if (data.products && data.products.length > 0) {
-                    const serverProductMap = new Map();
-                    data.products.forEach(p => {
-                        const key = p.id || p.barcode;
-                        if (key) serverProductMap.set(key, p);
-                    });
-                    
-                    const mergedProducts = [...data.products];
-                    if (appState.products && appState.products.length > 0) {
-                        appState.products.forEach(localP => {
-                            const key = localP.id || localP.barcode;
-                            if (key && !serverProductMap.has(key)) {
-                                mergedProducts.push(localP);
-                            }
+                    if (isServerNewer) {
+                        // السيرفر أحدث (حدث حذف أو تعديل من أجهزة أخرى)، نعتمد السيرفر بالكامل لتطبيق الحذف
+                        appState.products = data.products;
+                    } else {
+                        // دمج السلع المحلية التي لم تُرفع بعد
+                        const serverProductMap = new Map();
+                        data.products.forEach(p => {
+                            const key = p.id || p.barcode;
+                            if (key) serverProductMap.set(key, p);
                         });
+                        
+                        const mergedProducts = [...data.products];
+                        if (appState.products && appState.products.length > 0) {
+                            appState.products.forEach(localP => {
+                                const key = localP.id || localP.barcode;
+                                if (key && !serverProductMap.has(key)) {
+                                    mergedProducts.push(localP);
+                                }
+                            });
+                        }
+                        appState.products = mergedProducts;
                     }
-                    appState.products = mergedProducts;
                 } else {
                     // إذا كان السحاب فارغاً، نحافظ على السلع المحلية إن وجدت
                     if (!appState.products || appState.products.length === 0) {
@@ -6997,16 +7010,20 @@ async function initDatabaseSync() {
 
                 // دمج المبيعات والعمليات
                 if (data.transactions && data.transactions.length > 0) {
-                    const serverTxIds = new Set(data.transactions.map(t => t.id));
-                    const mergedTxs = [...data.transactions];
-                    if (appState.transactions && appState.transactions.length > 0) {
-                        appState.transactions.forEach(localT => {
-                            if (localT.id && !serverTxIds.has(localT.id)) {
-                                mergedTxs.push(localT);
-                            }
-                        });
+                    if (isServerNewer) {
+                        appState.transactions = data.transactions;
+                    } else {
+                        const serverTxIds = new Set(data.transactions.map(t => t.id));
+                        const mergedTxs = [...data.transactions];
+                        if (appState.transactions && appState.transactions.length > 0) {
+                            appState.transactions.forEach(localT => {
+                                if (localT.id && !serverTxIds.has(localT.id)) {
+                                    mergedTxs.push(localT);
+                                }
+                            });
+                        }
+                        appState.transactions = mergedTxs;
                     }
-                    appState.transactions = mergedTxs;
                 } else {
                     if (!appState.transactions || appState.transactions.length === 0) {
                         appState.transactions = data.transactions || [];
@@ -7076,7 +7093,7 @@ async function sendDataToServer() {
         if (res.ok) {
             const result = await res.json();
             if (result.dbVersion) {
-                currentDbVersion = result.dbVersion;
+                currentDbVersion = result.dbVersion; localStorage.setItem("smart_shop_db_version", currentDbVersion);
             }
             lanSyncMode = true;
         }
@@ -7098,7 +7115,7 @@ function startLanSyncPolling() {
             if (res.ok) {
                 const data = await res.json();
                 if (data.dbVersion && data.dbVersion > currentDbVersion) {
-                    currentDbVersion = data.dbVersion;
+                    currentDbVersion = data.dbVersion; localStorage.setItem("smart_shop_db_version", currentDbVersion);
                     isSyncing = true;
                     const dbRes = await fetch(syncServerUrl + '/api/db' + getStoreQueryParam(), { cache: 'no-store' });
                     if (dbRes.ok) {

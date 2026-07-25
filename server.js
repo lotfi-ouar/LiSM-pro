@@ -151,19 +151,50 @@ function writeInitialLocalDb(filePath, storeId) {
     return initialDb;
 }
 
-// إدارة إصدارات قاعدة البيانات بالملي ثانية للمزامنة الفورية
+// إدارة إصدارات قاعدة البيانات بالملي ثانية للمزامنة الفورية (محلياً وسحابياً)
 let dbVersions = {};
-function getDbVersion(storeId) {
+let dbVersionCache = {}; // { main: { version: 1234, lastChecked: 17890000 } }
+
+function getDbVersionLocal(storeId) {
     const sId = storeId || 'main';
     if (!dbVersions[sId]) {
         dbVersions[sId] = Date.now();
     }
     return dbVersions[sId];
 }
-function updateDbVersion(storeId) {
+
+async function getDbVersionAsync(storeId) {
     const sId = storeId || 'main';
-    dbVersions[sId] = Date.now();
-    return dbVersions[sId];
+    const now = Date.now();
+    
+    // إذا كان لدينا كاش للنسخة ولم يمر عليه أكثر من 3 ثوانٍ، نرجعه فوراً لتفادي الضغط على الشبكة
+    if (dbVersionCache[sId] && (now - dbVersionCache[sId].lastChecked < 3000)) {
+        return dbVersionCache[sId].version;
+    }
+    
+    // إذا لم يكن هناك اتصال سحابي، نعتمد على النسخة المحلية
+    if (!firebaseConfig || !firebaseConfig.databaseURL || firebaseConfig.databaseURL.trim() === '') {
+        return getDbVersionLocal(sId);
+    }
+    
+    try {
+        let url = `${firebaseConfig.databaseURL.replace(/\/$/, '')}/stores/${sId}/dbVersion.json`;
+        if (firebaseConfig.databaseSecret && firebaseConfig.databaseSecret.trim() !== '') {
+            url += `?auth=${firebaseConfig.databaseSecret}`;
+        }
+        
+        const cloudVersion = await httpsGetJson(url);
+        if (cloudVersion) {
+            const verNum = Number(cloudVersion);
+            dbVersionCache[sId] = { version: verNum, lastChecked: now };
+            dbVersions[sId] = verNum; // مزامنة المتغير المحلي
+            return verNum;
+        }
+    } catch (e) {
+        // في حالة فشل الاتصال، نتراجع بصمت للنسخة المحلية
+    }
+    
+    return getDbVersionLocal(sId);
 }
 
 // دالة مساعدة لعمل طلب HTTPS GET بطريقة متوافقة تماماً مع الإصدارات القديمة لنود
@@ -381,9 +412,10 @@ const server = http.createServer((req, res) => {
         console.log(`📤 [قراءة البيانات] جاري جلب قاعدة البيانات للمتجر: [${storeId}]...`);
         readDatabase(storeId)
             .then(data => {
+                const dbVer = data.dbVersion || getDbVersionLocal(storeId);
                 res.writeHead(200, { 
                     'Content-Type': 'application/json; charset=utf-8',
-                    'X-DB-Version': getDbVersion(storeId).toString()
+                    'X-DB-Version': dbVer.toString()
                 });
                 res.end(JSON.stringify(data));
             })
@@ -397,8 +429,15 @@ const server = http.createServer((req, res) => {
     // فحص نسخة وتحديثات قاعدة البيانات بالملي ثانية
     if (pathname === '/api/sync-check' && req.method === 'GET') {
         const storeId = parsedUrl.searchParams.get('storeId') || 'main';
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ dbVersion: getDbVersion(storeId) }));
+        getDbVersionAsync(storeId)
+            .then(version => {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ dbVersion: version }));
+            })
+            .catch(() => {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ dbVersion: getDbVersionLocal(storeId) }));
+            });
         return;
     }
 
@@ -450,9 +489,15 @@ const server = http.createServer((req, res) => {
         req.on('end', () => {
             try {
                 const incomingData = JSON.parse(body);
+                
+                // توليد رقم إصدار فريد بالملي ثانية وتضمينه بداخل قاعدة البيانات المرفوعة
+                const newVersion = Date.now();
+                incomingData.dbVersion = newVersion;
+                dbVersions[storeId] = newVersion;
+                dbVersionCache[storeId] = { version: newVersion, lastChecked: Date.now() };
+
                 writeDatabase(storeId, incomingData)
                     .then(() => {
-                        const newVersion = updateDbVersion(storeId);
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ success: true, dbVersion: newVersion }));
                     })
