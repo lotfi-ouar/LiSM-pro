@@ -172,7 +172,6 @@ function loadFromLocalStorage() {
             if (!appState.supplierDebts) appState.supplierDebts = [];
 
             if (!appState.customers) appState.customers = [];
-            if (!appState.deletedProductIds) appState.deletedProductIds = [];
 
             // ترحيل الديون العادية للزبائن العابرين السابقة إلى قائمة الزبائن الدائمين الموحدة
             if (appState.debts && appState.debts.length > 0) {
@@ -6916,7 +6915,7 @@ function updateEmployeeOfTheWeekUI() {
 
 let lanSyncMode = false;
 let isSyncing = false;
-let currentDbVersion = Number(localStorage.getItem("smart_shop_db_version") || 0);
+let currentDbVersion = 0;
 let syncServerUrl = '';
 
 function getSyncServerBaseUrl() {
@@ -6943,13 +6942,8 @@ async function initDatabaseSync() {
         const res = await fetch(syncServerUrl + '/api/db' + getStoreQueryParam(), { cache: 'no-store' });
         if (res.ok) {
             const data = await res.json();
-            // 1. قراءة رقم الإصدار المحلي الحالي قبل تحديثه بالسحابة
-            const oldLocalVersion = Number(localStorage.getItem("smart_shop_db_version") || 0);
-            
-            const serverVersionHeader = res.headers.get('X-DB-Version') || data.dbVersion || Date.now();
-            const serverVersion = Number(serverVersionHeader);
-            currentDbVersion = serverVersion;
-            localStorage.setItem("smart_shop_db_version", currentDbVersion);
+            const serverVersion = res.headers.get('X-DB-Version') || Date.now();
+            currentDbVersion = Number(serverVersion);
             lanSyncMode = true;
 
             // تهيئة حقل الاختيار واللوحة النشطة للمحل في الإعدادات
@@ -6975,75 +6969,13 @@ async function initDatabaseSync() {
 
             if (data && (Array.isArray(data.products) || Array.isArray(data.users))) {
                 if (data.storeSettings) appState.storeSettings = data.storeSettings;
-                
-                // مقارنة إصدار العميل المحلي القديم (قبل التحديث) مع السيرفر
-                const isServerNewer = serverVersion > oldLocalVersion;
-
-                // دمج ذكي للسلع لمنع ضياع السلع المضافة محلياً/أوفلاين قبل اكتمال المزامنة
-                if (data.products && data.products.length > 0) {
-                    if (isServerNewer) {
-                        // السيرفر أحدث (حدث حذف أو تعديل من أجهزة أخرى)، نعتمد السيرفر بالكامل لتطبيق الحذف
-                        appState.products = data.products;
-                    } else {
-                        // دمج السلع المحلية التي لم تُرفع بعد
-                        const serverProductMap = new Map();
-                        data.products.forEach(p => {
-                            const key = p.id || p.barcode;
-                            if (key) serverProductMap.set(key, p);
-                        });
-                        
-                        const mergedProducts = [...data.products];
-                        if (appState.products && appState.products.length > 0) {
-                            appState.products.forEach(localP => {
-                                const key = localP.id || localP.barcode;
-                                if (key && !serverProductMap.has(key)) {
-                                    mergedProducts.push(localP);
-                                }
-                            });
-                        }
-                        appState.products = mergedProducts;
-                    }
-                } else {
-                    // إذا كان السحاب فارغاً، نحافظ على السلع المحلية إن وجدت
-                    if (!appState.products || appState.products.length === 0) {
-                        appState.products = data.products || [];
-                    }
-                }
-
-                // دمج المبيعات والعمليات
-                if (data.transactions && data.transactions.length > 0) {
-                    if (isServerNewer) {
-                        appState.transactions = data.transactions;
-                    } else {
-                        const serverTxIds = new Set(data.transactions.map(t => t.id));
-                        const mergedTxs = [...data.transactions];
-                        if (appState.transactions && appState.transactions.length > 0) {
-                            appState.transactions.forEach(localT => {
-                                if (localT.id && !serverTxIds.has(localT.id)) {
-                                    mergedTxs.push(localT);
-                                }
-                            });
-                        }
-                        appState.transactions = mergedTxs;
-                    }
-                } else {
-                    if (!appState.transactions || appState.transactions.length === 0) {
-                        appState.transactions = data.transactions || [];
-                    }
-                }
-
-                // دمج الديون والشركاء
+                appState.products = data.products || [];
+                appState.transactions = data.transactions || [];
                 appState.debts = data.debts || [];
                 appState.supplierDebts = data.supplierDebts || [];
                 if (data.users && data.users.length > 0) appState.users = data.users;
-                appState.deletedProductIds = data.deletedProductIds || [];
 
                 localStorage.setItem("smart_shop_state", JSON.stringify(appState));
-                
-                // رفع البيانات المحلية المدمجة للسيرفر السحابي فوراً لضمان تحديث السحاب
-                if (typeof sendDataToServer === 'function') {
-                    sendDataToServer();
-                }
                 
                 // تحديث رسالة الإيصال فور المزامنة مع السيرفر
                 updateReceiptFooterUI(appState.storeSettings.receiptFooterMessage);
@@ -7086,8 +7018,7 @@ async function sendDataToServer() {
             transactions: appState.transactions,
             debts: appState.debts || [],
             supplierDebts: appState.supplierDebts || [],
-            users: appState.users || [],
-            deletedProductIds: appState.deletedProductIds || []
+            users: appState.users || []
         };
         const res = await fetch(syncServerUrl + '/api/sync' + getStoreQueryParam(), {
             method: 'POST',
@@ -7097,7 +7028,7 @@ async function sendDataToServer() {
         if (res.ok) {
             const result = await res.json();
             if (result.dbVersion) {
-                currentDbVersion = result.dbVersion; localStorage.setItem("smart_shop_db_version", currentDbVersion);
+                currentDbVersion = result.dbVersion;
             }
             lanSyncMode = true;
         }
@@ -7119,7 +7050,7 @@ function startLanSyncPolling() {
             if (res.ok) {
                 const data = await res.json();
                 if (data.dbVersion && data.dbVersion > currentDbVersion) {
-                    currentDbVersion = data.dbVersion; localStorage.setItem("smart_shop_db_version", currentDbVersion);
+                    currentDbVersion = data.dbVersion;
                     isSyncing = true;
                     const dbRes = await fetch(syncServerUrl + '/api/db' + getStoreQueryParam(), { cache: 'no-store' });
                     if (dbRes.ok) {
@@ -7131,7 +7062,6 @@ function startLanSyncPolling() {
                             appState.debts = newDb.debts || [];
                             appState.supplierDebts = newDb.supplierDebts || [];
                             if (newDb.users) appState.users = newDb.users;
-                            appState.deletedProductIds = newDb.deletedProductIds || [];
 
                             localStorage.setItem("smart_shop_state", JSON.stringify(appState));
                             if (typeof calculateGlobalStats === 'function') calculateGlobalStats();
@@ -13334,7 +13264,7 @@ window.openMobileCameraScanner = function(targetInputId) {
     // تهيئة القارئ إذا لم يكن مهيأً
     if (!zxingReader) {
         // نستخدم BrowserMultiFormatReader لقراءة جميع أنواع الباركود
-        zxingReader = new ZXing.BrowserBarcodeReader();
+        zxingReader = new ZXing.BrowserMultiFormatReader();
     }
 
     // إظهار زر تبديل الكاميرات كحالة افتراضية مخفية
