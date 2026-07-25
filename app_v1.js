@@ -13264,7 +13264,7 @@ window.openMobileCameraScanner = function(targetInputId) {
     // تهيئة القارئ إذا لم يكن مهيأً
     if (!zxingReader) {
         // نستخدم BrowserMultiFormatReader لقراءة جميع أنواع الباركود
-        zxingReader = new ZXing.BrowserMultiFormatReader();
+        zxingReader = new ZXing.BrowserBarcodeReader();
     }
 
     // إظهار زر تبديل الكاميرات كحالة افتراضية مخفية
