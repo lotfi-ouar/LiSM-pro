@@ -6942,7 +6942,10 @@ async function initDatabaseSync() {
         const res = await fetch(syncServerUrl + '/api/db' + getStoreQueryParam(), { cache: 'no-store' });
         if (res.ok) {
             const data = await res.json();
-            const serverVersionHeader = res.headers.get('X-DB-Version') || Date.now();
+            // 1. قراءة رقم الإصدار المحلي الحالي قبل تحديثه بالسحابة
+            const oldLocalVersion = Number(localStorage.getItem("smart_shop_db_version") || 0);
+            
+            const serverVersionHeader = res.headers.get('X-DB-Version') || data.dbVersion || Date.now();
             const serverVersion = Number(serverVersionHeader);
             currentDbVersion = serverVersion;
             localStorage.setItem("smart_shop_db_version", currentDbVersion);
@@ -6972,10 +6975,8 @@ async function initDatabaseSync() {
             if (data && (Array.isArray(data.products) || Array.isArray(data.users))) {
                 if (data.storeSettings) appState.storeSettings = data.storeSettings;
                 
-                // قراءة إصدار العميل المحلي المخزن مقارنة بالسيرفر
-                const localVersion = Number(localStorage.getItem("smart_shop_db_version") || 0);
-                const serverVersion = Number(serverVersionHeader || data.dbVersion || Date.now());
-                const isServerNewer = serverVersion > localVersion;
+                // مقارنة إصدار العميل المحلي القديم (قبل التحديث) مع السيرفر
+                const isServerNewer = serverVersion > oldLocalVersion;
 
                 // دمج ذكي للسلع لمنع ضياع السلع المضافة محلياً/أوفلاين قبل اكتمال المزامنة
                 if (data.products && data.products.length > 0) {
