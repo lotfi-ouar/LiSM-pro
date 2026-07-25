@@ -378,6 +378,7 @@ const server = http.createServer((req, res) => {
 
     if (pathname === '/api/db' && req.method === 'GET') {
         const storeId = parsedUrl.searchParams.get('storeId') || 'main';
+        console.log(`📤 [قراءة البيانات] جاري جلب قاعدة البيانات للمتجر: [${storeId}]...`);
         readDatabase(storeId)
             .then(data => {
                 res.writeHead(200, { 
@@ -443,6 +444,7 @@ const server = http.createServer((req, res) => {
     // مزامنة وحفظ البيانات الجديدة من أي حاسوب كاشير أو للمدير مع النسخ الاحتياطي التلقائي
     if (pathname === '/api/sync' && req.method === 'POST') {
         const storeId = parsedUrl.searchParams.get('storeId') || 'main';
+        console.log(`📥 [حفظ المزامنة] تم استقبال طلب حفظ سحابي للمتجر: [${storeId}]...`);
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });
         req.on('end', () => {
