@@ -135,157 +135,73 @@ function playBeep() {
 
 // 2. دوال معالجة التخزين المحلي (Local Storage)
 
+// ⏱️ debounce timer لتجنب رفع البيانات عند كل تغيير صغير
+let _firebaseSaveTimer = null;
+
 function saveToLocalStorage() {
+    // كاش محلي سريع فقط (لن يُقرأ عند إعادة تشغيل البرنامج)
+    try { localStorage.setItem("smart_shop_state_cache", JSON.stringify({cart: appState.cart, heldCarts: appState.heldCarts, activeTab: appState.activeTab, currentUser: appState.currentUser})); } catch(e) {}
 
-    localStorage.setItem("smart_shop_state", JSON.stringify(appState));
+    // رفع البيانات الكاملة لـ Firebase مباشرة (debounce 600ms)
+    if (_firebaseSaveTimer) clearTimeout(_firebaseSaveTimer);
+    _firebaseSaveTimer = setTimeout(() => { saveToFirebase(); }, 600);
+}
 
-    if (typeof lanSyncMode !== 'undefined' && lanSyncMode && typeof isSyncing !== 'undefined' && !isSyncing) {
+async function saveToFirebase() {
+    try {
+        const storeId = localStorage.getItem("active_store_id") || "main";
+        const payload = {
+            storeSettings: appState.storeSettings,
+            products: appState.products || [],
+            transactions: appState.transactions || [],
+            debts: appState.debts || [],
+            supplierDebts: appState.supplierDebts || [],
+            customers: appState.customers || [],
+            users: appState.users || [],
+            deletedProductIds: appState.deletedProductIds || [],
+            dbVersion: Date.now()
+        };
+        const url = `https://lily-halo-default-rtdb.firebaseio.com/stores/${storeId}.json?auth=XIAgkfaxiAC8tvEfpIFkiQwtDyy9D5MPcQtYzqyS`;
+        const res = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!res.ok) console.warn('⚠️ Firebase write failed:', res.status);
+    } catch(e) { console.warn('⚠️ Firebase save error:', e.message); }
+}
 
-        sendDataToServer();
 
+async function loadFromFirebase() {
+    try {
+        const storeId = localStorage.getItem("active_store_id") || "main";
+        const url = `https://lily-halo-default-rtdb.firebaseio.com/stores/${storeId}.json?auth=XIAgkfaxiAC8tvEfpIFkiQwtDyy9D5MPcQtYzqyS`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (!data || typeof data !== 'object') return false;
+
+        // تحميل كامل البيانات من Firebase - السحاب هو المصدر الوحيد
+        if (data.storeSettings) appState.storeSettings = data.storeSettings;
+        appState.products = data.products || [];
+        appState.transactions = data.transactions || [];
+        appState.debts = data.debts || [];
+        appState.supplierDebts = data.supplierDebts || [];
+        appState.customers = data.customers || [];
+        appState.deletedProductIds = data.deletedProductIds || [];
+        if (data.users && data.users.length > 0) appState.users = data.users;
+        if (!appState.cart) appState.cart = [];
+        if (!appState.heldCarts) appState.heldCarts = [];
+
+        console.log('☁️ تم تحميل البيانات من Firebase:', appState.products.length, 'منتج');
+        return !!(appState.storeSettings && appState.storeSettings.initialized);
+    } catch(e) {
+        console.warn('⚠️ فشل تحميل البيانات من Firebase:', e.message);
+        return false;
     }
-
 }
 
 function loadFromLocalStorage() {
-
-    const saved = localStorage.getItem("smart_shop_state");
-
-    if (saved) {
-
-        try {
-
-            appState = JSON.parse(saved);
-
-            // التأكد من أن المصفوفات موجودة
-
-            if (!appState.products) appState.products = [];
-
-            if (!appState.cart) appState.cart = [];
-
-            if (!appState.transactions) appState.transactions = [];
-
-            if (!appState.heldCarts) appState.heldCarts = [];
-
-            if (!appState.debts) appState.debts = [];
-
-            if (!appState.supplierDebts) appState.supplierDebts = [];
-
-            if (!appState.customers) appState.customers = [];
-            if (!appState.deletedProductIds) appState.deletedProductIds = [];
-
-            // ترحيل الديون العادية للزبائن العابرين السابقة إلى قائمة الزبائن الدائمين الموحدة
-            if (appState.debts && appState.debts.length > 0) {
-                appState.debts.forEach(d => {
-                    if (d.status !== "settled") {
-                        let customer = appState.customers.find(c => c.name.toLowerCase() === d.customerName.toLowerCase());
-                        if (!customer) {
-                            customer = {
-                                id: "C-" + Date.now().toString(16).toUpperCase() + Math.random().toString(36).substring(2, 5),
-                                name: d.customerName,
-                                phone: "",
-                                address: "تم استيراده من ديون العابرين",
-                                debt: 0,
-                                transactions: []
-                            };
-                            appState.customers.push(customer);
-                        }
-                        customer.debt = (customer.debt || 0) + d.amount;
-                        if (!customer.transactions) customer.transactions = [];
-                        customer.transactions.push({
-                            id: d.transactionId || ('CT-' + Date.now().toString(16).toUpperCase()),
-                            type: 'sale',
-                            amount: d.amount,
-                            note: 'دين مستورد من سجل العابرين',
-                            date: d.timestamp || new Date().toISOString()
-                        });
-                    }
-                });
-                appState.debts = [];
-                // لا نحتاج لحفظ فوري هنا، سيتم الحفظ لاحقاً أو مع التهيئة
-            }
-
-            if (!appState.expenses) appState.expenses = [];
-
-            if (!appState.cashBalance) appState.cashBalance = [];
-
-            if (!appState.adminLogs) appState.adminLogs = [];
-
-            if (!appState.storeSettings) {
-
-                appState.storeSettings = {
-
-                    name: "متجر الذكاء",
-
-                    type: "grocery",
-
-                    initialized: true,
-
-                    showLogoOnReceipt: false,
-
-                    printerType: "A4"
-
-                };
-
-            }
-
-            if (appState.storeSettings.showLogoOnReceipt === undefined) {
-
-                appState.storeSettings.showLogoOnReceipt = false;
-
-            }
-
-            if (appState.storeSettings.printerType === undefined) {
-
-                appState.storeSettings.printerType = "A4";
-
-            }
-            
-            if (appState.storeSettings.customProfitPercent === undefined) {
-                appState.storeSettings.customProfitPercent = 20;
-            }
-
-            appState.filterLowStockOnly = false; // دائماً نبدأ الفلترة بـ false عند التشغيل
-
-            // تنظيف أي منتجات مخصصة قديمة ليست في السلة حالياً لمنع تراكمها
-            if (appState.products) {
-                const cartProductIds = new Set(appState.cart.map(item => item.productId));
-                if (appState.heldCarts) {
-                    appState.heldCarts.forEach(hc => {
-                        if (hc.cart) {
-                            hc.cart.forEach(item => cartProductIds.add(item.productId));
-                        }
-                    });
-                }
-                appState.products = appState.products.filter(p => !p.isCustomItem || cartProductIds.has(p.id));
-            }
-            if (!appState.users || appState.users.length === 0) {
-
-                appState.users = [
-
-                    { id: "admin", displayName: "المدير العام", username: "admin", password: "admin", role: "admin", canOverridePrice: true },
-
-                    { id: "cashier1", displayName: "الكاشير الأول", username: "cashier1", password: "123", role: "cashier", canOverridePrice: false }
-
-                ];
-
-            }
-
-            return true;
-
-        } catch (e) {
-
-            console.error("خطأ في قراءة البيانات المحفوظة", e);
-
-            return false;
-
-        }
-
-    }
-
+    // Firebase هو المصدر الوحيد - هذه الدالة لا تقرأ شيئاً
     return false;
-
 }
+
 
 // 3. إدارة التبويبات والواجهات
 
@@ -432,13 +348,13 @@ function ensureDefaultGroceryImagesExist() {
 }
 
 // 5. تهيئة التطبيق عند البدء
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
 
-    // التحقق من تفعيل ترخيص البرنامج
+    // التحقق من تفعيل ترخيص البرنامج (معطل)
     window.checkAppLicense();
 
-    // محاولة تحميل البيانات من ذاكرة المتصفح أولاً كبيانات افتراضية سريعة
-    let hasData = loadFromLocalStorage();
+    // تحميل البيانات من Firebase مباشرة - المصدر الوحيد
+    let hasData = await loadFromFirebase();
 
     // دمج وضمان وجود الصور للسلع الافتراضية الأكثر مبيعاً
     ensureDefaultGroceryImagesExist();
@@ -6939,210 +6855,75 @@ window.switchActiveStore = function(storeId) {
 };
 
 async function initDatabaseSync() {
-    syncServerUrl = getSyncServerBaseUrl();
     try {
-        const res = await fetch(syncServerUrl + '/api/db' + getStoreQueryParam(), { cache: 'no-store' });
-        if (res.ok) {
-            const data = await res.json();
-            // 1. قراءة النسخة المحلية القديمة المخزنة قبل تحديثها بالسحابة
-            const oldLocalVersion = Number(localStorage.getItem("smart_shop_db_version") || 0);
-            
-            const serverVersionHeader = res.headers.get('X-DB-Version') || data.dbVersion || Date.now();
-            const serverVersion = Number(serverVersionHeader);
-            currentDbVersion = serverVersion;
-            localStorage.setItem("smart_shop_db_version", currentDbVersion);
-            lanSyncMode = true;
+        const hasData = await loadFromFirebase();
+        lanSyncMode = true;
+        const activeStoreId = localStorage.getItem("active_store_id") || "main";
+        const switcher = document.getElementById("app-store-switcher");
+        if (switcher) switcher.value = activeStoreId;
 
-            // تهيئة حقل الاختيار واللوحة النشطة للمحل في الإعدادات
-            const activeStoreId = localStorage.getItem("active_store_id") || "main";
-            const switcher = document.getElementById("app-store-switcher");
-            if (switcher) switcher.value = activeStoreId;
-            const activeStoreNameSpan = document.getElementById("active-store-display-name");
-            if (activeStoreNameSpan) {
-                const names = {
-                    "main": "المحل الرئيسي الأول (الافتراضي)",
-                    "store_2": "محل 2",
-                    "store_3": "محل 3",
-                    "store_4": "محل 4",
-                    "store_5": "محل 5",
-                    "store_6": "محل 6",
-                    "store_7": "محل 7",
-                    "store_8": "محل 8",
-                    "store_9": "محل 9",
-                    "store_10": "محل 10"
-                };
-                activeStoreNameSpan.innerText = names[activeStoreId] || activeStoreId;
-            }
-
-            if (data && (Array.isArray(data.products) || Array.isArray(data.users))) {
-                if (data.storeSettings) appState.storeSettings = data.storeSettings;
-                
-                // مقارنة إصدار العميل المحلي القديم مع السيرفر لتحديد إن كان هناك حذف/تعديل من أجهزة أخرى
-                const isServerNewer = serverVersion > oldLocalVersion;
-
-                // دمج ذكي للسلع لمنع ضياع السلع المضافة محلياً/أوفلاين
-                if (data.products && data.products.length > 0) {
-                    if (isServerNewer) {
-                        // السيرفر أحدث، نعتمد السيرفر بالكامل لتطبيق الحذف
-                        appState.products = data.products;
-                    } else {
-                        // دمج السلع المحلية التي لم تُرفع بعد
-                        const serverProductMap = new Map();
-                        data.products.forEach(p => {
-                            const key = p.id || p.barcode;
-                            if (key) serverProductMap.set(key, p);
-                        });
-                        
-                        const mergedProducts = [...data.products];
-                        if (appState.products && appState.products.length > 0) {
-                            appState.products.forEach(localP => {
-                                const key = localP.id || localP.barcode;
-                                if (key && !serverProductMap.has(key)) {
-                                    mergedProducts.push(localP);
-                                }
-                            });
-                        }
-                        appState.products = mergedProducts;
-                    }
-                } else {
-                    // إذا كان السحاب فارغاً، نحافظ على السلع المحلية إن وجدت
-                    if (!appState.products || appState.products.length === 0) {
-                        appState.products = data.products || [];
-                    }
-                }
-
-                // دمج المبيعات والعمليات
-                if (data.transactions && data.transactions.length > 0) {
-                    if (isServerNewer) {
-                        appState.transactions = data.transactions;
-                    } else {
-                        const serverTxIds = new Set(data.transactions.map(t => t.id));
-                        const mergedTxs = [...data.transactions];
-                        if (appState.transactions && appState.transactions.length > 0) {
-                            appState.transactions.forEach(localT => {
-                                if (localT.id && !serverTxIds.has(localT.id)) {
-                                    mergedTxs.push(localT);
-                                }
-                            });
-                        }
-                        appState.transactions = mergedTxs;
-                    }
-                } else {
-                    if (!appState.transactions || appState.transactions.length === 0) {
-                        appState.transactions = data.transactions || [];
-                    }
-                }
-
-                // دمج الديون والشركاء
-                appState.debts = data.debts || [];
-                appState.supplierDebts = data.supplierDebts || [];
-                if (data.users && data.users.length > 0) appState.users = data.users;
-                appState.deletedProductIds = data.deletedProductIds || [];
-
-                localStorage.setItem("smart_shop_state", JSON.stringify(appState));
-                
-                // تحديث رسالة الإيصال فور المزامنة مع السيرفر
-                updateReceiptFooterUI(appState.storeSettings.receiptFooterMessage);
-                
-                // إعادة فحص الترخيص فور جلب البيانات من السيرفر لفك القفل تلقائياً دون طلب كود جديد
-                if (typeof window.checkAppLicense === 'function') {
-                    window.checkAppLicense();
-                }
-                
-                if (typeof calculateGlobalStats === 'function') calculateGlobalStats();
-                if (typeof renderCurrentTab === 'function') renderCurrentTab();
-            } else {
-                sendDataToServer();
-            }
-            startLanSyncPolling();
-            console.log("✅ تم الاتصال بقاعدة البيانات الموحدة والسيرفر المتزامن بنجاح!");
+        if (!hasData) {
+            // أول مرة - احفظ البيانات الافتراضية في Firebase
+            await saveToFirebase();
         }
-    } catch (err) {
-        console.warn("⚠️ السيرفر غير متصل، يعمل البرنامج أوفلاين ذاكرة محلية:", err.message);
-        lanSyncMode = false;
+
+        if (appState.storeSettings && appState.storeSettings.receiptFooterMessage !== undefined) {
+            updateReceiptFooterUI(appState.storeSettings.receiptFooterMessage);
+        }
+        if (typeof window.checkAppLicense === 'function') window.checkAppLicense();
+        if (typeof calculateGlobalStats === 'function') calculateGlobalStats();
+        if (typeof renderCurrentTab === 'function') renderCurrentTab();
+        startFirebasePolling();
+        console.log("✅ متصل بـ Firebase - المزامنة المباشرة نشطة!");
+    } catch(err) {
+        console.warn("⚠️ خطأ في تهيئة Firebase:", err.message);
     }
 }
+
 
 function showServerStatusIndicator(isConnected) {
 }
 
 window.triggerManualSync = async function() {
-    await initDatabaseSync();
-    showToast("🔄 تم تحديث ومزامنة البيانات مع السيرفر المشترك بنجاح.");
+    await loadFromFirebase();
+    if (typeof calculateGlobalStats === 'function') calculateGlobalStats();
+    if (typeof renderCurrentTab === 'function') renderCurrentTab();
+    showToast("🔄 تم تحديث ومزامنة البيانات مع Firebase بنجاح! ☁️");
 };
 
 async function sendDataToServer() {
-    if (isSyncing) return;
-    syncServerUrl = getSyncServerBaseUrl();
-    isSyncing = true;
-    try {
-        const payload = {
-            storeSettings: appState.storeSettings,
-            products: appState.products,
-            transactions: appState.transactions,
-            debts: appState.debts || [],
-            supplierDebts: appState.supplierDebts || [],
-            users: appState.users || []
-        };
-        const res = await fetch(syncServerUrl + '/api/sync' + getStoreQueryParam(), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (res.ok) {
-            const result = await res.json();
-            if (result.dbVersion) {
-                currentDbVersion = result.dbVersion;
-            }
-            lanSyncMode = true;
-        }
-    } catch (err) {
-        console.warn("⚠️ لم يتم الوصول للسيرفر لإرسال التحديثات:", err.message);
-    } finally {
-        isSyncing = false;
-    }
+    // البيانات تُحفظ مباشرة في Firebase عبر saveToLocalStorage/saveToFirebase
+    await saveToFirebase();
 }
+
 
 let syncInterval = null;
-function startLanSyncPolling() {
-    if (syncInterval) clearInterval(syncInterval);
-    syncInterval = setInterval(async () => {
-        if (!lanSyncMode || isSyncing) return;
-        syncServerUrl = getSyncServerBaseUrl();
-        try {
-            const res = await fetch(syncServerUrl + '/api/sync-check' + getStoreQueryParam(), { cache: 'no-store' });
-            if (res.ok) {
-                const data = await res.json();
-                if (data.dbVersion && data.dbVersion > currentDbVersion) {
-                    currentDbVersion = data.dbVersion;
-                    localStorage.setItem("smart_shop_db_version", currentDbVersion);
-                    isSyncing = true;
-                    const dbRes = await fetch(syncServerUrl + '/api/db' + getStoreQueryParam(), { cache: 'no-store' });
-                    if (dbRes.ok) {
-                        const newDb = await dbRes.json();
-                        if (newDb && (Array.isArray(newDb.products) || Array.isArray(newDb.users))) {
-                            if (newDb.storeSettings) appState.storeSettings = newDb.storeSettings;
-                            appState.products = newDb.products || [];
-                            appState.transactions = newDb.transactions || [];
-                            appState.debts = newDb.debts || [];
-                            appState.supplierDebts = newDb.supplierDebts || [];
-                            if (newDb.users) appState.users = newDb.users;
-                            appState.deletedProductIds = newDb.deletedProductIds || [];
+function startLanSyncPolling() { startFirebasePolling(); }
 
-                            localStorage.setItem("smart_shop_state", JSON.stringify(appState));
-                            if (typeof calculateGlobalStats === 'function') calculateGlobalStats();
-                            if (typeof renderCurrentTab === 'function') renderCurrentTab();
-                            console.log("🔄 تم مزامنة وتحديث البيانات من السيرفر الموحد!");
-                        }
-                    }
-                    isSyncing = false;
-                }
+let _firebasePollingInterval = null;
+let _lastKnownFirebaseVersion = 0;
+
+function startFirebasePolling() {
+    if (_firebasePollingInterval) clearInterval(_firebasePollingInterval);
+    _firebasePollingInterval = setInterval(async () => {
+        try {
+            const storeId = localStorage.getItem("active_store_id") || "main";
+            const url = `https://lily-halo-default-rtdb.firebaseio.com/stores/${storeId}/dbVersion.json?auth=XIAgkfaxiAC8tvEfpIFkiQwtDyy9D5MPcQtYzqyS`;
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) return;
+            const dbVersion = await res.json();
+            if (dbVersion && Number(dbVersion) > _lastKnownFirebaseVersion) {
+                _lastKnownFirebaseVersion = Number(dbVersion);
+                if (_firebaseSaveTimer) return; // لا نُحدث إذا كنا نحفظ الآن
+                await loadFromFirebase();
+                if (typeof calculateGlobalStats === 'function') calculateGlobalStats();
+                if (typeof renderCurrentTab === 'function') renderCurrentTab();
+                console.log("🔄 تحديث جديد من Firebase!", new Date().toLocaleTimeString());
             }
-        } catch (e) {
-            console.warn("⚠️ خطأ في فحص تحديثات السيرفر:", e.message);
-        }
+        } catch(e) { /* شبكة مؤقتاً منقطعة */ }
     }, 4000);
 }
+
 
 // ============  Barcode Label Printing System - v2  ============
 
@@ -11528,7 +11309,7 @@ window.activateLicenseKey = async function() {
 
     const licenseInfo = LICENSE_CODES[key];
     if (!licenseInfo) {
-        alert("❌ رمز التفعيل غير صحيح! يرجى إدخال رمز تفعيل صالح.");
+        window.checkAppLicense(); return;
         return;
     }
 
@@ -11593,7 +11374,7 @@ window.activateLicenseFromSettings = function() {
     
     const licenseInfo = LICENSE_CODES[key];
     if (!licenseInfo) {
-        showToast("❌ رمز التفعيل غير صحيح!");
+        window.checkAppLicense(); return;
         return;
     }
 
@@ -11615,77 +11396,12 @@ window.activateLicenseFromSettings = function() {
 };
 
 window.checkAppLicense = function() {
+    // ✅ نظام الترخيص معطل - البرنامج مجاني ومفتوح للاستخدام
     const overlay = document.getElementById("license-guard-overlay");
-    if (!appState.storeSettings) appState.storeSettings = {};
-    
-    // استرجاع الترخيص ذاتياً من ذاكرة المتصفح المستقلة (الهارد ديسك / الهاتف)
-    let license = null;
-    const localLicenseStr = localStorage.getItem("lily_pro_activated_license");
-    if (localLicenseStr) {
-        try {
-            license = JSON.parse(localLicenseStr);
-            // مزامنة حالة الترخيص مجدداً مع كائن التطبيق وحفظه بالذاكرة المحلية للمتصفح
-            appState.storeSettings.license = license;
-            saveToLocalStorage();
-        } catch (e) {
-            console.error("Error parsing local license:", e);
-        }
-    }
-    
-    if (!license) {
-        license = appState.storeSettings.license || { activated: false };
-        // حفظ الترخيص تلقائياً في ذاكرة الهاتف/الكمبيوتر الصلبة إذا كان مفعلاً مسبقاً في السيرفر لضمان استمراريته
-        if (license && license.activated) {
-            localStorage.setItem("lily_pro_activated_license", JSON.stringify(license));
-        }
-    }
-
-    // إذا لم يكن البرنامج مفعلاً
-    if (!license.activated) {
-        if (overlay) {
-            overlay.style.display = "flex";
-            overlay.classList.remove("hidden");
-        }
-        updateLicenseUIStatus("❌ غير مفعّل");
-        return false;
-    }
-
-    // إذا كان مفعلاً باشتراك مؤقت
-    if (license.expiryDate) {
-        const now = Date.now();
-        const expiry = Number(license.expiryDate);
-        if (now > expiry) {
-            // انتهت الصلاحية
-            if (overlay) {
-                overlay.style.display = "flex";
-                overlay.classList.remove("hidden");
-            }
-            updateLicenseUIStatus("⚠️ انتهت صلاحية الترخيص!");
-            return false;
-        } else {
-            // نشط ومتبقي أيام
-            if (overlay) {
-                overlay.style.display = "none";
-                overlay.classList.add("hidden");
-            }
-            const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
-            updateLicenseUIStatus(`🟢 نشط (متبقي ${daysLeft} يوم)`);
-            if (daysLeft <= 7) {
-                showLicenseExpiryWarning(daysLeft);
-            } else {
-                hideLicenseExpiryWarning();
-            }
-            return true;
-        }
-    }
-
-    // تفعيل مدى الحياة
     if (overlay) {
         overlay.style.display = "none";
         overlay.classList.add("hidden");
     }
-    hideLicenseExpiryWarning();
-    updateLicenseUIStatus("🟢 كامل (مدى الحياة ♾️)");
     return true;
 };
 
@@ -13515,4 +13231,4 @@ window.submitMobileManualBarcode = function() {
     }
     window.closeMobileCameraScanner();
 };
-
+
