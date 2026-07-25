@@ -7036,6 +7036,7 @@ async function initDatabaseSync() {
                 appState.debts = data.debts || [];
                 appState.supplierDebts = data.supplierDebts || [];
                 if (data.users && data.users.length > 0) appState.users = data.users;
+                appState.deletedProductIds = data.deletedProductIds || [];
 
                 localStorage.setItem("smart_shop_state", JSON.stringify(appState));
                 
@@ -7085,7 +7086,8 @@ async function sendDataToServer() {
             transactions: appState.transactions,
             debts: appState.debts || [],
             supplierDebts: appState.supplierDebts || [],
-            users: appState.users || []
+            users: appState.users || [],
+            deletedProductIds: appState.deletedProductIds || []
         };
         const res = await fetch(syncServerUrl + '/api/sync' + getStoreQueryParam(), {
             method: 'POST',
@@ -7129,6 +7131,7 @@ function startLanSyncPolling() {
                             appState.debts = newDb.debts || [];
                             appState.supplierDebts = newDb.supplierDebts || [];
                             if (newDb.users) appState.users = newDb.users;
+                            appState.deletedProductIds = newDb.deletedProductIds || [];
 
                             localStorage.setItem("smart_shop_state", JSON.stringify(appState));
                             if (typeof calculateGlobalStats === 'function') calculateGlobalStats();
