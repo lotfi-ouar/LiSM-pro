@@ -150,6 +150,7 @@ function saveToLocalStorage() {
 async function saveToFirebase() {
     try {
         const storeId = localStorage.getItem("active_store_id") || "main";
+        const newVersion = Date.now();
         const payload = {
             storeSettings: appState.storeSettings,
             products: appState.products || [],
@@ -159,11 +160,16 @@ async function saveToFirebase() {
             customers: appState.customers || [],
             users: appState.users || [],
             deletedProductIds: appState.deletedProductIds || [],
-            dbVersion: Date.now()
+            dbVersion: newVersion
         };
         const url = `https://lily-halo-default-rtdb.firebaseio.com/stores/${storeId}.json?auth=XIAgkfaxiAC8tvEfpIFkiQwtDyy9D5MPcQtYzqyS`;
         const res = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (!res.ok) console.warn('⚠️ Firebase write failed:', res.status);
+        if (res.ok) {
+            // ✅ تحديث الإصدار المعروف لدينا لمنع إعادة التحميل بعد الحفظ مباشرة
+            _lastKnownFirebaseVersion = newVersion;
+        } else {
+            console.warn('⚠️ Firebase write failed:', res.status);
+        }
     } catch(e) { console.warn('⚠️ Firebase save error:', e.message); }
 }
 
@@ -188,6 +194,11 @@ async function loadFromFirebase() {
         if (data.users && data.users.length > 0) appState.users = data.users;
         if (!appState.cart) appState.cart = [];
         if (!appState.heldCarts) appState.heldCarts = [];
+
+        // ✅ تحديث رقم الإصدار الذي نعرفه لتجنب تحميل البيانات مرة أخرى بدون سبب
+        if (data.dbVersion) {
+            _lastKnownFirebaseVersion = Number(data.dbVersion);
+        }
 
         console.log('☁️ تم تحميل البيانات من Firebase:', appState.products.length, 'منتج');
         return !!(appState.storeSettings && appState.storeSettings.initialized);
