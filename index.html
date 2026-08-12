@@ -2562,13 +2562,27 @@
                         
                         <!-- 2. كود بار / QR كود (سطر مستقل) -->
                         <div class="form-group" style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
-                            <label for="prod-barcode" style="font-size: 0.82rem; font-weight: 800; color: var(--text-main);">كود بار / QR كود:</label>
+                            <label for="prod-barcode" style="font-size: 0.82rem; font-weight: 800; color: var(--text-main); display: flex; align-items: center; justify-content: space-between;">
+                                <span>كود بار / QR كود الرئيسي:</span>
+                            </label>
                             <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
                                 <input type="text" id="prod-barcode" placeholder="" style="flex: 1; min-width: 0; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 12px; color: #818cf8; font-family: 'Consolas', 'Courier New', monospace; font-size: 1rem; font-weight: 800; letter-spacing: 1px; outline: none; height: 42px;">
                                 <button type="button" class="btn-mobile-camera-trigger" onclick="openMobileCameraScanner('prod-barcode')" style="display: none; height: 42px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(16,185,129,0.35); background: rgba(16,185,129,0.15); color: #10b981; cursor: pointer; flex-shrink: 0;" title="فتح الكاميرا والمسح المباشر"><i class="fa-solid fa-camera"></i></button>
                                 <button type="button" id="btn-generate-barcode" class="btn-secondary-sm" style="height: 42px; padding: 0 14px; border-radius: 8px; flex-shrink: 0;" title="توليد باركود تلقائي">
                                     <i class="fa-solid fa-wand-magic-sparkles"></i>
                                 </button>
+                                <button type="button" id="btn-add-extra-barcode" onclick="addBarcodeRow()" style="height: 42px; padding: 0 14px; border-radius: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.4); font-weight: 900; font-size: 1.1rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0; transition: all 0.2s ease; touch-action: manipulation;" title="إضافة باركود إضافي للمنتج">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+
+                            <!-- قائمة الباركودات الإضافية المنسدلة أسفل بعض -->
+                            <div id="additional-barcodes-container" style="display: none; flex-direction: column; gap: 8px; margin-top: 6px; background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 10px; transition: all 0.3s ease;">
+                                <div style="font-size: 0.75rem; font-weight: 800; color: #818cf8; display: flex; align-items: center; justify-content: space-between;">
+                                    <span><i class="fa-solid fa-barcode"></i> الباركودات الإضافية للمنتج:</span>
+                                    <button type="button" onclick="addBarcodeRow()" style="background: none; border: none; color: #10b981; cursor: pointer; font-size: 0.75rem; font-weight: 800;"><i class="fa-solid fa-plus"></i> إضافة سطر آخر</button>
+                                </div>
+                                <div id="additional-barcodes-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
                             </div>
                             <div id="prod-barcode-warning" class="hidden" style="margin-top: 4px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 8px; padding: 6px 10px; font-size: 0.78rem; color: #f59e0b; font-weight: bold; display: flex; align-items: center; gap: 6px;">
                                 <i class="fa-solid fa-triangle-exclamation"></i>

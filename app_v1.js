@@ -1,3 +1,87 @@
+
+/* =======================================================
+   نظام الباركودات المتعددة الأنيق لمنتج واحد (Multi-Barcode System)
+   ======================================================= */
+window.isBarcodeMatch = function(product, rawCode) {
+    if (!product || !rawCode) return false;
+    const cleanTarget = window.cleanAndNormalizeBarcode ? window.cleanAndNormalizeBarcode(rawCode) : String(rawCode).trim();
+    if (!cleanTarget) return false;
+
+    // فحص الباركود الرئيسي
+    if (product.barcode) {
+        const cleanPrimary = window.cleanAndNormalizeBarcode ? window.cleanAndNormalizeBarcode(product.barcode) : String(product.barcode).trim();
+        if (cleanPrimary === cleanTarget || String(product.barcode).trim() === String(rawCode).trim()) return true;
+
+        if (String(product.barcode).includes(',')) {
+            const parts = String(product.barcode).split(',').map(b => window.cleanAndNormalizeBarcode ? window.cleanAndNormalizeBarcode(b) : b.trim());
+            if (parts.includes(cleanTarget)) return true;
+        }
+    }
+
+    // فحص الباركودات الإضافية في مصفوفة barcodes
+    if (product.barcodes) {
+        if (Array.isArray(product.barcodes)) {
+            return product.barcodes.some(b => {
+                const c = window.cleanAndNormalizeBarcode ? window.cleanAndNormalizeBarcode(b) : String(b).trim();
+                return c === cleanTarget || String(b).trim() === String(rawCode).trim();
+            });
+        } else if (typeof product.barcodes === 'string') {
+            const parts = product.barcodes.split(',').map(b => window.cleanAndNormalizeBarcode ? window.cleanAndNormalizeBarcode(b) : b.trim());
+            return parts.includes(cleanTarget);
+        }
+    }
+
+    return false;
+};
+
+window.addBarcodeRow = function(value = "") {
+    const container = document.getElementById("additional-barcodes-container");
+    const list = document.getElementById("additional-barcodes-list");
+    if (!container || !list) return;
+
+    container.style.display = "flex";
+
+    const rowId = "bc-row-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+    const row = document.createElement("div");
+    row.id = rowId;
+    row.className = "additional-barcode-row";
+    row.style.cssText = "display: flex; gap: 8px; align-items: center; width: 100%;";
+
+    row.innerHTML = `
+        <input type="text" class="additional-barcode-input" value="${value}" placeholder="باركود إضافي آخر..." style="flex: 1; min-width: 0; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 12px; color: #818cf8; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.95rem; font-weight: 800; letter-spacing: 1px; outline: none; height: 42px;">
+        <button type="button" onclick="generateBarcodeForRow('${rowId}')" style="height: 42px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-main); cursor: pointer; flex-shrink: 0; font-size: 0.85rem;" title="توليد باركود تلقائي"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+        <button type="button" onclick="removeBarcodeRow('${rowId}')" style="height: 42px; padding: 0 12px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; border-radius: 8px; cursor: pointer; flex-shrink: 0; font-size: 0.88rem;" title="حذف هذا الباركود"><i class="fa-solid fa-trash-can"></i></button>
+    `;
+
+    list.appendChild(row);
+};
+
+window.removeBarcodeRow = function(rowId) {
+    const row = document.getElementById(rowId);
+    if (row) row.remove();
+    const list = document.getElementById("additional-barcodes-list");
+    const container = document.getElementById("additional-barcodes-container");
+    if (list && container && list.children.length === 0) {
+        container.style.display = "none";
+    }
+};
+
+window.generateBarcodeForRow = function(rowId) {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    const input = row.querySelector(".additional-barcode-input");
+    if (input) {
+        input.value = "20" + Math.floor(10000000000 + Math.random() * 90000000000);
+    }
+};
+
+window.clearBarcodeRows = function() {
+    const list = document.getElementById("additional-barcodes-list");
+    const container = document.getElementById("additional-barcodes-container");
+    if (list) list.innerHTML = "";
+    if (container) container.style.display = "none";
+};
+
 /* ==========================================
 
    نظام تسيير المحل الذكي - ملف البرمجة الرئيسي (JS)
@@ -2557,7 +2641,7 @@ function addProductToCartById(id, qtyToAdd = 1, customPrice = null) {
 
 function addProductToCartByBarcode(rawBarcode) {
     const barcode = window.cleanAndNormalizeBarcode(rawBarcode);
-    const product = appState.products.find(p => p.barcode === barcode || p.barcode === rawBarcode);
+    const product = appState.products.find(p => window.isBarcodeMatch(p, barcode) || window.isBarcodeMatch(p, rawBarcode));
 
     if (product) {
 
@@ -3736,6 +3820,7 @@ window.hideDuplicateBarcodeWarning = function(context) {
 
 // تصفية حقول النموذج بعد الحفظ أو الإلغاء
 function resetProductForm() {
+    if (window.clearBarcodeRows) window.clearBarcodeRows();
     const title = document.getElementById("inventory-form-title");
     if (title) title.innerText = "إضافة منتج جديد للمخزن";
 
@@ -12327,7 +12412,7 @@ window.initBarcodeDiagTool = function() {
 
         // فحص المطابقة في المخزون
         const matchStatus = document.getElementById("diag-match-status");
-        const matchedProd = (appState.products || []).find(p => p.barcode === cleaned || p.barcode === raw);
+        const matchedProd = (appState.products || []).find(p => window.isBarcodeMatch(p, cleaned) || window.isBarcodeMatch(p, raw));
         if (matchStatus) {
             if (matchedProd) {
                 matchStatus.innerHTML = `<span style="color: #10b981; font-weight: 800;">✅ متطابق مع [ ${matchedProd.name} ] - سعر البيع: ${matchedProd.sellPrice} دج - المخزون: ${matchedProd.qty}</span>`;
