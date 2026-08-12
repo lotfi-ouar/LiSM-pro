@@ -958,6 +958,13 @@
 
 
                         <!-- ترويسة السلة العلوية المطورة: جميع الأزرار والعميل وتأكيد البيع -->
+                        
+                            <!-- 🛒 زر تأكيد وحفظ البيع الحصري للهاتف فقط -->
+                            <button type="button" id="btn-mobile-confirm-sale" onclick="if (window.processCheckout) window.processCheckout(false);" class="mobile-only-confirm-btn" style="width: 100%; height: 46px; border-radius: 12px; font-weight: 900; font-size: 0.95rem; background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; border: none; cursor: pointer; display: none; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4); font-family: inherit; touch-action: manipulation;">
+                                <i class="fa-solid fa-circle-check" style="font-size: 1.1rem;"></i>
+                                <span>تأكيد وحفظ البيع 🛒</span>
+                            </button>
+
                         <div class="cart-header-compact" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">
                             <!-- 1. اختيار العميل -->
                             <div style="display: flex; align-items: center; gap: 4px; width: 100%;">
@@ -2541,74 +2548,76 @@
                 <input type="hidden" id="prod-id" value="">
 
                 <!-- محتوى النموذج مقسم إلى سطرين أو فئتين مغلفتين -->
-                <div style="padding: 20px; max-height: 480px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px;">
+                <div style="padding: 20px; max-height: 480px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
                     
                     <!-- القسم الأول: المعلومات الأساسية والأسعار -->
-                    <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--glass-border); border-radius: 12px; padding: 15px;">
-                        <h4 style="margin: 0 0 12px; font-weight: 800; color: var(--text-main); font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;"><i class="fa-solid fa-circle-info text-info"></i> البيانات الأساسية والتسعير</h4>
+                    <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--glass-border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+                        <h4 style="margin: 0; font-weight: 800; color: var(--text-main); font-size: 0.95rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;"><i class="fa-solid fa-circle-info text-info"></i> البيانات الأساسية والتسعير</h4>
                         
-                        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 12px;">
-                            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
-                                <label for="prod-name" style="font-size: 0.8rem; font-weight: 700; color: var(--text-main);">اسم المنتج: <span style="color: #ef4444;">*</span></label>
-                                <input type="text" id="prod-name" required placeholder="مثال: شامبو كيراتين، تفاح محلي..." style="background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px 12px; color: var(--text-main); font-family: inherit; font-size: 0.85rem; outline: none;">
+                        <!-- 1. اسم المنتج (سطر مستقل) -->
+                        <div class="form-group" style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                            <label for="prod-name" style="font-size: 0.82rem; font-weight: 800; color: var(--text-main);">اسم المنتج: <span style="color: #ef4444;">*</span></label>
+                            <input type="text" id="prod-name" required placeholder="" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 12px; color: var(--text-main); font-family: inherit; font-size: 0.9rem; outline: none; height: 42px;">
+                        </div>
+                        
+                        <!-- 2. كود بار / QR كود (سطر مستقل) -->
+                        <div class="form-group" style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                            <label for="prod-barcode" style="font-size: 0.82rem; font-weight: 800; color: var(--text-main);">كود بار / QR كود:</label>
+                            <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+                                <input type="text" id="prod-barcode" placeholder="" style="flex: 1; min-width: 0; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 12px; color: #818cf8; font-family: 'Consolas', 'Courier New', monospace; font-size: 1rem; font-weight: 800; letter-spacing: 1px; outline: none; height: 42px;">
+                                <button type="button" class="btn-mobile-camera-trigger" onclick="openMobileCameraScanner('prod-barcode')" style="display: none; height: 42px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(16,185,129,0.35); background: rgba(16,185,129,0.15); color: #10b981; cursor: pointer; flex-shrink: 0;" title="فتح الكاميرا والمسح المباشر"><i class="fa-solid fa-camera"></i></button>
+                                <button type="button" id="btn-generate-barcode" class="btn-secondary-sm" style="height: 42px; padding: 0 14px; border-radius: 8px; flex-shrink: 0;" title="توليد باركود تلقائي">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                </button>
                             </div>
-                            
-                            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
-                                <label for="prod-barcode" style="font-size: 0.8rem; font-weight: 700; color: var(--text-main);">كود بار / QR كود:</label>
-                                <div style="display: flex; align-items: center; gap: 6px;">
-                                    <input type="text" id="prod-barcode" placeholder="امسح الباركود أو اتركه فارغاً للتوليد" style="flex: 1; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px 12px; color: var(--text-main); font-family: inherit; font-size: 0.85rem; outline: none;">
-                                    <button type="button" class="btn-mobile-camera-trigger" onclick="openMobileCameraScanner('prod-barcode')" style="display: none; height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid rgba(16,185,129,0.35); background: rgba(16,185,129,0.15); color: #10b981; cursor: pointer;" title="فتح الكاميرا والمسح المباشر"><i class="fa-solid fa-camera"></i></button>
-                                    <button type="button" id="btn-generate-barcode" class="btn-secondary-sm" style="height: 36px; padding: 0 12px; border-radius: 8px;" title="توليد باركود تلقائي">
-                                        <i class="fa-solid fa-wand-magic-sparkles"></i>
-                                    </button>
-                                </div>
-                                <div id="prod-barcode-warning" class="hidden" style="margin-top: 4px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 8px; padding: 6px 10px; font-size: 0.78rem; color: #f59e0b; font-weight: bold; display: flex; align-items: center; gap: 6px;">
-                                    <i class="fa-solid fa-triangle-exclamation"></i>
-                                    <span id="prod-barcode-warning-text"></span>
-                                </div>
+                            <div id="prod-barcode-warning" class="hidden" style="margin-top: 4px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 8px; padding: 6px 10px; font-size: 0.78rem; color: #f59e0b; font-weight: bold; display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                <span id="prod-barcode-warning-text"></span>
                             </div>
                         </div>
 
-                        <div class="form-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
-                            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
-                                <label for="prod-buy-price" style="font-size: 0.8rem; font-weight: 700; color: var(--text-main);">سعر الشراء (دج): <span style="color: #ef4444;">*</span></label>
-                                <input type="number" id="prod-buy-price" required min="0" step="0.01" placeholder="سعر التكلفة..." style="background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px 12px; color: var(--text-main); font-family: inherit; font-size: 0.85rem; outline: none;">
-                            </div>
-                            
-                            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
-                                <label for="prod-sell-price" style="font-size: 0.8rem; font-weight: 700; color: var(--text-main);">سعر البيع (دج): <span style="color: #ef4444;">*</span></label>
-                                <input type="number" id="prod-sell-price" required min="0" step="0.01" placeholder="سعر البيع للزبون..." style="background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px 12px; color: var(--text-main); font-family: inherit; font-size: 0.85rem; outline: none;">
-                            </div>
-
-                            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
-                                <label for="prod-qty" style="font-size: 0.8rem; font-weight: 700; color: var(--text-main);">الكمية في المخزن: <span style="color: #ef4444;">*</span></label>
-                                <input type="number" id="prod-qty" required min="0" placeholder="الكمية الحالية..." style="background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px 12px; color: var(--text-main); font-family: inherit; font-size: 0.85rem; outline: none;">
-                            </div>
+                        <!-- 3. سعر الشراء (سطر مستقل) -->
+                        <div class="form-group" style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                            <label for="prod-buy-price" style="font-size: 0.82rem; font-weight: 800; color: var(--text-main);">سعر الشراء (دج): <span style="color: #ef4444;">*</span></label>
+                            <input type="number" id="prod-buy-price" required min="0" step="0.01" placeholder="" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 12px; color: var(--text-main); font-family: inherit; font-size: 0.9rem; outline: none; height: 42px;">
+                        </div>
+                        
+                        <!-- 4. سعر البيع (سطر مستقل) -->
+                        <div class="form-group" style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                            <label for="prod-sell-price" style="font-size: 0.82rem; font-weight: 800; color: var(--text-main);">سعر البيع (دج): <span style="color: #ef4444;">*</span></label>
+                            <input type="number" id="prod-sell-price" required min="0" step="0.01" placeholder="" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 12px; color: var(--text-main); font-family: inherit; font-size: 0.9rem; outline: none; height: 42px;">
                         </div>
 
-                        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
-                                <label for="prod-unit" style="font-size: 0.8rem; font-weight: 700; color: var(--text-main);">الوحدة القياسية:</label>
-                                <select id="prod-unit" style="background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px 12px; color: var(--text-main); font-family: inherit; font-size: 0.85rem; outline: none; cursor: pointer;">
-                                    <option value="قطعة">قطعة (Pcs)</option>
-                                    <option value="كيلوغرام">كيلوغرام (Kg)</option>
-                                    <option value="علبة">علبة (Box)</option>
-                                    <option value="لتر">لتر (Litre)</option>
-                                </select>
-                            </div>
+                        <!-- 5. الكمية في المخزن (سطر مستقل) -->
+                        <div class="form-group" style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                            <label for="prod-qty" style="font-size: 0.82rem; font-weight: 800; color: var(--text-main);">الكمية في المخزن: <span style="color: #ef4444;">*</span></label>
+                            <input type="number" id="prod-qty" required min="0" placeholder="" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 12px; color: var(--text-main); font-family: inherit; font-size: 0.9rem; outline: none; height: 42px;">
+                        </div>
 
-                            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
-                                <label for="prod-category" style="font-size: 0.8rem; font-weight: 700; color: var(--text-main);">التصنيف / الفئة:</label>
-                                <input type="text" id="prod-category" placeholder="مثال: مكياج، فواكه، ألبان..." list="categories-list" style="background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px 12px; color: var(--text-main); font-family: inherit; font-size: 0.85rem; outline: none;">
-                            </div>
+                        <!-- 6. الوحدة القياسية (سطر مستقل) -->
+                        <div class="form-group" style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                            <label for="prod-unit" style="font-size: 0.82rem; font-weight: 800; color: var(--text-main);">الوحدة القياسية:</label>
+                            <select id="prod-unit" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 12px; color: var(--text-main); font-family: inherit; font-size: 0.9rem; outline: none; cursor: pointer; height: 42px;">
+                                <option value="قطعة">قطعة (Pcs)</option>
+                                <option value="كيلوغرام">كيلوغرام (Kg)</option>
+                                <option value="علبة">علبة (Box)</option>
+                                <option value="لتر">لتر (Litre)</option>
+                            </select>
+                        </div>
+
+                        <!-- 7. التصنيف / الفئة (سطر مستقل) -->
+                        <div class="form-group" style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                            <label for="prod-category" style="font-size: 0.82rem; font-weight: 800; color: var(--text-main);">التصنيف / الفئة:</label>
+                            <input type="text" id="prod-category" placeholder="" list="categories-list" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 12px; color: var(--text-main); font-family: inherit; font-size: 0.9rem; outline: none; height: 42px;">
                         </div>
                     </div>
 
                     <!-- القسم الثاني: خصائص البيع السريع والصور والألوان والبيع بالجملة -->
-                    <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--glass-border); border-radius: 12px; padding: 15px;">
-                        <h4 style="margin: 0 0 12px; font-weight: 800; color: var(--text-main); font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;"><i class="fa-solid fa-star text-warning"></i> خصائص البيع السريع والخصائص المتقدمة</h4>
+                    <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--glass-border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+                        <h4 style="margin: 0; font-weight: 800; color: var(--text-main); font-size: 0.95rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;"><i class="fa-solid fa-star text-warning"></i> خصائص البيع السريع والخصائص المتقدمة</h4>
                         
-                        <div style="background: rgba(255, 159, 28, 0.04); padding: 12px; border-radius: 8px; border: 1px dashed rgba(255, 159, 28, 0.2); margin-bottom: 12px;">
+                        <!-- 8. خيار البيع السريع (سطر مستقل) -->
+                        <div style="background: rgba(255, 159, 28, 0.04); padding: 12px; border-radius: 8px; border: 1px dashed rgba(255, 159, 28, 0.2); display: flex; flex-direction: column; gap: 12px; width: 100%; box-sizing: border-box;">
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <input type="checkbox" id="prod-is-quick-sell" style="width: 18px; height: 18px; cursor: pointer;">
                                 <label for="prod-is-quick-sell" style="margin-bottom: 0; cursor: pointer; color: var(--color-warning); font-weight: 700; font-size: 0.82rem;">
@@ -2616,55 +2625,58 @@
                                 </label>
                             </div>
                             
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
-                                <div style="display: flex; flex-direction: column; gap: 4px;">
-                                    <label for="prod-emoji" style="font-size: 0.75rem; color: var(--text-muted);">إيموجي / رمز السلعة السريعة:</label>
-                                    <input type="text" id="prod-emoji" value="📦" style="background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 6px; padding: 6px 10px; color: var(--text-main); text-align: center; font-size: 0.85rem; outline: none;">
+                            <!-- إيموجي (سطر مستقل) -->
+                            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                                <label for="prod-emoji" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 700;">إيموجي / رمز السلعة السريعة:</label>
+                                <input type="text" id="prod-emoji" value="📦" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 6px; padding: 8px 10px; color: var(--text-main); text-align: center; font-size: 0.9rem; outline: none; height: 38px;">
+                            </div>
+
+                            <!-- لون بطاقة المنتج (سطر مستقل) -->
+                            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                                <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 700;">لون بطاقة المنتج في POS:</label>
+                                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                    <button type="button" class="btn-color-pick" data-color="" onclick="selectProductColor('')" style="background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 0.72rem; color: var(--text-muted); height: 28px;">افتراضي</button>
+                                    <button type="button" class="btn-color-pick" data-color="#1e3a5f" onclick="selectProductColor('#1e3a5f')" style="background: #1e3a5f; width: 28px; height: 28px; border-radius: 4px; border: none; cursor: pointer;" title="أزرق"></button>
+                                    <button type="button" class="btn-color-pick" data-color="#1a472a" onclick="selectProductColor('#1a472a')" style="background: #1a472a; width: 28px; height: 28px; border-radius: 4px; border: none; cursor: pointer;" title="أخضر"></button>
+                                    <button type="button" class="btn-color-pick" data-color="#4a1942" onclick="selectProductColor('#4a1942')" style="background: #4a1942; width: 28px; height: 28px; border-radius: 4px; border: none; cursor: pointer;" title="بنفسجي"></button>
+                                    <button type="button" class="btn-color-pick" data-color="#7b2d00" onclick="selectProductColor('#7b2d00')" style="background: #7b2d00; width: 28px; height: 28px; border-radius: 4px; border: none; cursor: pointer;" title="برتقالي"></button>
                                 </div>
-                                <div style="display: flex; flex-direction: column; gap: 4px;">
-                                    <label style="font-size: 0.75rem; color: var(--text-muted);">لون بطاقة المنتج في POS:</label>
-                                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-                                        <button type="button" class="btn-color-pick" data-color="" onclick="selectProductColor('')" style="background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.68rem; color: var(--text-muted); height: 26px;">افتراضي</button>
-                                        <button type="button" class="btn-color-pick" data-color="#1e3a5f" onclick="selectProductColor('#1e3a5f')" style="background: #1e3a5f; width: 26px; height: 26px; border-radius: 4px; border: none; cursor: pointer;" title="أزرق"></button>
-                                        <button type="button" class="btn-color-pick" data-color="#1a472a" onclick="selectProductColor('#1a472a')" style="background: #1a472a; width: 26px; height: 26px; border-radius: 4px; border: none; cursor: pointer;" title="أخضر"></button>
-                                        <button type="button" class="btn-color-pick" data-color="#4a1942" onclick="selectProductColor('#4a1942')" style="background: #4a1942; width: 26px; height: 26px; border-radius: 4px; border: none; cursor: pointer;" title="بنفسجي"></button>
-                                        <button type="button" class="btn-color-pick" data-color="#7b2d00" onclick="selectProductColor('#7b2d00')" style="background: #7b2d00; width: 26px; height: 26px; border-radius: 4px; border: none; cursor: pointer;" title="برتقالي"></button>
-                                    </div>
-                                    <input type="hidden" id="prod-card-color" value="">
-                                </div>
+                                <input type="hidden" id="prod-card-color" value="">
                             </div>
                         </div>
 
-                        <!-- خيار الصورة المرفوعة للبيع السريع -->
-                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 12px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                        <!-- 9. صورة المنتج (سطر مستقل) -->
+                        <div style="display: flex; align-items: center; gap: 15px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--glass-border); width: 100%; box-sizing: border-box;">
                             <div id="prod-image-preview-wrap" onclick="document.getElementById('prod-image-upload').click()" style="width: 60px; height: 60px; border-radius: 8px; border: 2px dashed rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.02); cursor: pointer; overflow: hidden; flex-shrink: 0;">
                                 <img id="prod-image-preview" src="" alt="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
                                 <i id="prod-image-placeholder" class="fa-solid fa-image" style="font-size: 1.4rem; color: #475569;"></i>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
-                                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-main);">صورة المنتج (تظهر ببطاقة البيع السريع):</span>
+                                <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-main);">صورة المنتج (تظهر ببطاقة البيع السريع):</span>
                                 <div style="display: flex; gap: 6px;">
-                                    <button type="button" onclick="document.getElementById('prod-image-upload').click()" class="btn-secondary-xs" style="padding: 4px 10px; font-size: 0.72rem;"><i class="fa-solid fa-upload"></i> رفع صورة</button>
-                                    <button type="button" id="btn-remove-prod-image" onclick="removeProdImage()" class="btn-outline" style="font-size: 0.72rem; padding: 2px 8px; color: #f87171; border-color: rgba(239,68,68,0.25); display: none;"><i class="fa-solid fa-trash"></i> حذف</button>
+                                    <button type="button" onclick="document.getElementById('prod-image-upload').click()" class="btn-secondary-xs" style="padding: 4px 10px; font-size: 0.75rem;"><i class="fa-solid fa-upload"></i> رفع صورة</button>
+                                    <button type="button" id="btn-remove-prod-image" onclick="removeProdImage()" class="btn-outline" style="font-size: 0.75rem; padding: 2px 8px; color: #f87171; border-color: rgba(239,68,68,0.25); display: none;"><i class="fa-solid fa-trash"></i> حذف</button>
                                 </div>
                                 <input type="file" id="prod-image-upload" accept="image/*" style="display: none;" onchange="handleProdImageUpload(event)">
                                 <input type="hidden" id="prod-image-data" value="">
                             </div>
                         </div>
 
-                        <!-- البيع بالجملة وكمية الفاردو -->
-                        <div style="background: rgba(46, 196, 182, 0.04); padding: 12px; border-radius: 8px; border: 1px dashed rgba(46, 196, 182, 0.2); display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                            <div style="display: flex; flex-direction: column; gap: 4px;">
-                                <label for="prod-promo-qty" style="font-size: 0.78rem; color: var(--color-success); font-weight: 700;"><i class="fa-solid fa-box-open"></i> كمية الفاردو / العلبة:</label>
-                                <input type="number" id="prod-promo-qty" min="0" placeholder="مثال: 6 قطع..." style="background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 6px; padding: 6px 10px; color: var(--text-main); font-size: 0.8rem; outline: none;">
+                        <!-- 10. البيع بالجملة وكمية الفاردو (كل عنصر في سطر مستقل لأسفل كلياً) -->
+                        <div style="background: rgba(46, 196, 182, 0.04); padding: 14px; border-radius: 10px; border: 1px dashed rgba(46, 196, 182, 0.3); display: flex; flex-direction: column; gap: 12px; width: 100%; box-sizing: border-box;">
+                            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                                <label for="prod-promo-qty" style="font-size: 0.82rem; color: var(--color-success); font-weight: 800;"><i class="fa-solid fa-box-open"></i> كمية الفاردو / العلبة:</label>
+                                <input type="number" id="prod-promo-qty" min="0" placeholder="" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 12px; color: var(--text-main); font-size: 0.9rem; font-weight: 700; outline: none; height: 42px;">
                             </div>
-                            <div style="display: flex; flex-direction: column; gap: 4px;">
-                                <label for="prod-promo-price" style="font-size: 0.78rem; color: var(--color-success); font-weight: 700;"><i class="fa-solid fa-tags"></i> سعر الفاردو بالجملة:</label>
-                                <input type="number" id="prod-promo-price" min="0" step="0.01" placeholder="مثال: 1200 د.ج..." style="background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 6px; padding: 6px 10px; color: var(--text-main); font-size: 0.8rem; outline: none;">
+                            
+                            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                                <label for="prod-promo-price" style="font-size: 0.82rem; color: var(--color-success); font-weight: 800;"><i class="fa-solid fa-tags"></i> سعر الفاردو بالجملة (د.ج):</label>
+                                <input type="number" id="prod-promo-price" min="0" step="0.01" placeholder="" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 12px; color: var(--text-main); font-size: 0.9rem; font-weight: 700; outline: none; height: 42px;">
                             </div>
-                            <div style="display: flex; align-items: flex-start; gap: 6px; grid-column: 1 / -1; margin-top: 6px;">
-                                <input type="checkbox" id="prod-barcode-is-bulk" style="width: 16px; height: 16px; cursor: pointer; margin-top: 2px;">
-                                <label for="prod-barcode-is-bulk" style="margin-bottom: 0; cursor: pointer; color: var(--color-success); font-size: 0.76rem; font-weight: bold; line-height: 1.3;">
+                            
+                            <div style="display: flex; align-items: flex-start; gap: 8px; margin-top: 4px; width: 100%;">
+                                <input type="checkbox" id="prod-barcode-is-bulk" style="width: 18px; height: 18px; cursor: pointer; margin-top: 2px; flex-shrink: 0;">
+                                <label for="prod-barcode-is-bulk" style="margin-bottom: 0; cursor: pointer; color: var(--color-success); font-size: 0.78rem; font-weight: bold; line-height: 1.4;">
                                     البيع التلقائي بالفاردو (عند قراءة الباركود، يتم بيع فاردو كامل للمشتري مباشرة بسعر الجملة المحدد).
                                 </label>
                             </div>
@@ -2912,6 +2924,7 @@
         </div>
     </div>
     
-    <script src="app_v1.js?v=28.0" charset="utf-8"></script>
+    
+<script src="app_v1.js?v=28.0" charset="utf-8"></script>
 </body>
 </html>

@@ -13242,4 +13242,39 @@ window.submitMobileManualBarcode = function() {
     }
     window.closeMobileCameraScanner();
 };
-
+
+
+/* =======================================================
+   نظام المزامنة اللحظية الحية بين الهاتف والحاسوب (Live Cross-Device Sync)
+   ======================================================= */
+window.syncLiveProductsWithServer = function() {
+    fetch('/api/state')
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.products && Array.isArray(data.products)) {
+                const currentCount = (appState.products || []).length;
+                if (data.products.length !== currentCount || JSON.stringify(data.products) !== JSON.stringify(appState.products)) {
+                    console.log('🔄 تم المزامنة والتحديث الحقيقي مع المخزون المركزي:', data.products.length, 'سلعة');
+                    appState.products = data.products;
+                    if (data.transactions) appState.transactions = data.transactions;
+                    if (data.expenses) appState.expenses = data.expenses;
+                    
+                    // Re-render UI components automatically
+                    if (typeof renderInventoryTable === 'function') renderInventoryTable();
+                    if (typeof renderPOSProducts === 'function') renderPOSProducts();
+                    if (typeof updateDashboardStats === 'function') updateDashboardStats();
+                }
+            }
+        })
+        .catch(err => {
+            console.warn('تخطي المزامنة المؤقتة:', err);
+        });
+};
+
+// تشغيل المزامنة التلقائية اللحظية كل 3 ثوانٍ بين الجوال والحاسوب
+if (!window.liveSyncIntervalStarted) {
+    window.liveSyncIntervalStarted = true;
+    setInterval(function() {
+        window.syncLiveProductsWithServer();
+    }, 3000);
+}

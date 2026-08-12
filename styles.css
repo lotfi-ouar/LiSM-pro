@@ -2804,3 +2804,18 @@ body.simulated-fullscreen #app-container {
     height: 100% !important;
     z-index: 999999 !important;
 }
+
+
+/* =======================================================
+   إظهار زر تأكيد البيع حصرياً للهاتف فقط
+   ======================================================= */
+@media (max-width: 1024px) {
+    #btn-mobile-confirm-sale {
+        display: flex !important;
+    }
+}
+@media (min-width: 1025px) {
+    #btn-mobile-confirm-sale {
+        display: none !important;
+    }
+}
