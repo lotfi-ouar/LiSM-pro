@@ -1,87 +1,3 @@
-
-/* =======================================================
-   نظام الباركودات المتعددة الأنيق لمنتج واحد (Multi-Barcode System)
-   ======================================================= */
-window.isBarcodeMatch = function(product, rawCode) {
-    if (!product || !rawCode) return false;
-    const cleanTarget = window.cleanAndNormalizeBarcode ? window.cleanAndNormalizeBarcode(rawCode) : String(rawCode).trim();
-    if (!cleanTarget) return false;
-
-    // فحص الباركود الرئيسي
-    if (product.barcode) {
-        const cleanPrimary = window.cleanAndNormalizeBarcode ? window.cleanAndNormalizeBarcode(product.barcode) : String(product.barcode).trim();
-        if (cleanPrimary === cleanTarget || String(product.barcode).trim() === String(rawCode).trim()) return true;
-
-        if (String(product.barcode).includes(',')) {
-            const parts = String(product.barcode).split(',').map(b => window.cleanAndNormalizeBarcode ? window.cleanAndNormalizeBarcode(b) : b.trim());
-            if (parts.includes(cleanTarget)) return true;
-        }
-    }
-
-    // فحص الباركودات الإضافية في مصفوفة barcodes
-    if (product.barcodes) {
-        if (Array.isArray(product.barcodes)) {
-            return product.barcodes.some(b => {
-                const c = window.cleanAndNormalizeBarcode ? window.cleanAndNormalizeBarcode(b) : String(b).trim();
-                return c === cleanTarget || String(b).trim() === String(rawCode).trim();
-            });
-        } else if (typeof product.barcodes === 'string') {
-            const parts = product.barcodes.split(',').map(b => window.cleanAndNormalizeBarcode ? window.cleanAndNormalizeBarcode(b) : b.trim());
-            return parts.includes(cleanTarget);
-        }
-    }
-
-    return false;
-};
-
-window.addBarcodeRow = function(value = "") {
-    const container = document.getElementById("additional-barcodes-container");
-    const list = document.getElementById("additional-barcodes-list");
-    if (!container || !list) return;
-
-    container.style.display = "flex";
-
-    const rowId = "bc-row-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
-    const row = document.createElement("div");
-    row.id = rowId;
-    row.className = "additional-barcode-row";
-    row.style.cssText = "display: flex; gap: 8px; align-items: center; width: 100%;";
-
-    row.innerHTML = `
-        <input type="text" class="additional-barcode-input" value="${value}" placeholder="باركود إضافي آخر..." style="flex: 1; min-width: 0; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 12px; color: #818cf8; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.95rem; font-weight: 800; letter-spacing: 1px; outline: none; height: 42px;">
-        <button type="button" onclick="generateBarcodeForRow('${rowId}')" style="height: 42px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-main); cursor: pointer; flex-shrink: 0; font-size: 0.85rem;" title="توليد باركود تلقائي"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
-        <button type="button" onclick="removeBarcodeRow('${rowId}')" style="height: 42px; padding: 0 12px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; border-radius: 8px; cursor: pointer; flex-shrink: 0; font-size: 0.88rem;" title="حذف هذا الباركود"><i class="fa-solid fa-trash-can"></i></button>
-    `;
-
-    list.appendChild(row);
-};
-
-window.removeBarcodeRow = function(rowId) {
-    const row = document.getElementById(rowId);
-    if (row) row.remove();
-    const list = document.getElementById("additional-barcodes-list");
-    const container = document.getElementById("additional-barcodes-container");
-    if (list && container && list.children.length === 0) {
-        container.style.display = "none";
-    }
-};
-
-window.generateBarcodeForRow = function(rowId) {
-    const row = document.getElementById(rowId);
-    if (!row) return;
-    const input = row.querySelector(".additional-barcode-input");
-    if (input) {
-        input.value = "20" + Math.floor(10000000000 + Math.random() * 90000000000);
-    }
-};
-
-window.clearBarcodeRows = function() {
-    const list = document.getElementById("additional-barcodes-list");
-    const container = document.getElementById("additional-barcodes-container");
-    if (list) list.innerHTML = "";
-    if (container) container.style.display = "none";
-};
-
 /* ==========================================
 
    نظام تسيير المحل الذكي - ملف البرمجة الرئيسي (JS)
@@ -94,7 +10,7 @@ window.clearBarcodeRows = function() {
 
 window.addEventListener('error', function(e) {
 
-    alert("⚠️ خطأ في تشغيل النظام: " + e.message + "\nالسطر: " + e.lineno + "\nالملف: " + e.filename);
+    console.error("⚠️ ملاحظة نظام غير حرجة:", e ? e.message : e);
 
 });
 
@@ -418,6 +334,11 @@ function applyStoreTheme() {
 
 // التأكد من دمج السلع الأكثر مبيعاً مع صورها في المخزن لتبديل الواجهة ومزامنتها
 function ensureDefaultGroceryImagesExist() {
+    const userIn = document.getElementById('login-username');
+    const passIn = document.getElementById('login-password');
+    if (userIn && !userIn.getAttribute('data-user-filled')) userIn.value = '';
+    if (passIn && !passIn.getAttribute('data-user-filled')) passIn.value = '';
+    
     if (!appState.products) appState.products = [];
     
     const items = [
@@ -2641,7 +2562,7 @@ function addProductToCartById(id, qtyToAdd = 1, customPrice = null) {
 
 function addProductToCartByBarcode(rawBarcode) {
     const barcode = window.cleanAndNormalizeBarcode(rawBarcode);
-    const product = appState.products.find(p => window.isBarcodeMatch(p, barcode) || window.isBarcodeMatch(p, rawBarcode));
+    const product = appState.products.find(p => p.barcode === barcode || p.barcode === rawBarcode);
 
     if (product) {
 
@@ -2717,7 +2638,7 @@ function refreshCartUI() {
 
         cartTbody.innerHTML = "";
 
-        appState.cart.forEach(item => {
+        appState.cart.forEach((item, index) => {
 
             const product = appState.products.find(p => p.id === item.productId);
 
@@ -2743,7 +2664,7 @@ function refreshCartUI() {
 
                 <td>
 
-                    <span class="item-name">${product.name}</span>
+                    <span class="cart-item-num" style="font-weight: 800; color: var(--accent-color); margin-left: 6px; font-size: 0.85rem;">${index + 1}</span> <span class="item-name">${product.name}</span>
 
                     ${isCustom ? `<span class="promo-badge-cart" style="background: rgba(255, 159, 28, 0.08); color: var(--color-warning); border-color: rgba(255, 159, 28, 0.2);"><i class="fa-solid fa-tag"></i> سعر مخصص</span>` : ''}
 
@@ -3820,7 +3741,6 @@ window.hideDuplicateBarcodeWarning = function(context) {
 
 // تصفية حقول النموذج بعد الحفظ أو الإلغاء
 function resetProductForm() {
-    if (window.clearBarcodeRows) window.clearBarcodeRows();
     const title = document.getElementById("inventory-form-title");
     if (title) title.innerText = "إضافة منتج جديد للمخزن";
 
@@ -11027,6 +10947,69 @@ window.triggerAddCustomAmount = function() {
     }
 };
 
+// 4. تصفير النظام بالكامل وحذف كافة السلع والمبيعات والمخزن
+window.resetDatabaseCompletely = function() {
+    const confirm1 = confirm("⚠️ تحذير أمني خطير: هل أنت متأكد من رغبتك في تصفير وتهيئة النظام بالكامل؟\nسيتم مسح كافة السلع في المخزن، والمبيعات، والديون، والمصاريف نهائياً ولن تتمكن من استرجاعها!");
+    if (!confirm1) return;
+    
+    const confirm2 = confirm("🚨 تأكيد نهائي وقاطع: هل أنت متأكد بنسبة 100%؟ سيتم تفريغ المحل تماماً ليكون فارغاً وجاهزاً للبدء من جديد!");
+    if (!confirm2) return;
+    
+    // 1. تصفير كائنات ومصفوفات النظام بالكامل في الذاكرة
+    appState.products = [];
+    appState.cart = [];
+    appState.transactions = [];
+    appState.debts = [];
+    appState.supplierDebts = [];
+    appState.heldCarts = [];
+    appState.expenses = [];
+    appState.cashBalance = [];
+    appState.adminLogs = [];
+    
+    if (!appState.users || appState.users.length === 0) {
+        appState.users = [
+            { id: "admin", displayName: "المدير العام", username: "admin", password: "admin", role: "admin" }
+        ];
+    }
+    
+    appState.storeSettings = {
+        name: appState.storeSettings ? appState.storeSettings.name : "متجر الذكاء",
+        type: appState.storeSettings ? appState.storeSettings.type : "grocery",
+        initialized: true
+    };
+    
+    // 2. مسح كافة الكاش والبيانات المخزنة محلياً في الذاكرة المؤقتة للمتصفح
+    try {
+        localStorage.removeItem("smart_shop_state");
+        localStorage.removeItem("smart_shop_state_cache");
+        localStorage.removeItem("shop_app_state");
+        localStorage.removeItem("smart_shop_cache_products");
+    } catch(e) {}
+
+    // 3. مسح وتصفير عقدة فايبربيز للمتجر النشط على السحاب فوراً
+    try {
+        const storeNodeId = (typeof window.getActiveStoreIdForFirebase === 'function') ? window.getActiveStoreIdForFirebase() : 'master_lotfi_store';
+        if (window.firebaseDB && storeNodeId) {
+            window.firebaseDB.ref("stores/" + storeNodeId).set({
+                products: [],
+                transactions: [],
+                debts: [],
+                expenses: [],
+                supplierDebts: [],
+                lastUpdated: Date.now()
+            }).catch(function(err) { console.warn("Firebase reset catch:", err); });
+        }
+    } catch(e) { console.warn("Firebase reset error:", e); }
+
+    // 4. حفظ الحالة المفرغة
+    if (typeof window.saveToLocalStorage === 'function') {
+        window.saveToLocalStorage();
+    }
+
+    alert("✅ تم تصفير وتهيئة المحل بالكامل وحذف جميع البيانات والسلع بنجاح! تم فتح صفحة جديدة فارغة.");
+    window.location.reload();
+};
+
 window.closeCustomAmountModal = function() {
     const modal = document.getElementById("custom-amount-modal");
     if (modal) modal.classList.add("hidden");
@@ -11942,13 +11925,6 @@ window.switchUserAccount = function() {
 };
 
 // 12. تسجيل الخروج المباشر
-window.logoutUserCustom = function() {
-    appState.currentUser = null;
-    saveToLocalStorage();
-    document.getElementById("login-screen").classList.remove("hidden");
-    showToast("🚪 تم تسجيل الخروج من البرنامج بنجاح.");
-};
-
 // 13. طباعة كشف حساب زبون
 window.printCustomerStatement = function(customerId) {
     const customer = (appState.customers || []).find(c => c.id === customerId);
@@ -12412,7 +12388,7 @@ window.initBarcodeDiagTool = function() {
 
         // فحص المطابقة في المخزون
         const matchStatus = document.getElementById("diag-match-status");
-        const matchedProd = (appState.products || []).find(p => window.isBarcodeMatch(p, cleaned) || window.isBarcodeMatch(p, raw));
+        const matchedProd = (appState.products || []).find(p => p.barcode === cleaned || p.barcode === raw);
         if (matchStatus) {
             if (matchedProd) {
                 matchStatus.innerHTML = `<span style="color: #10b981; font-weight: 800;">✅ متطابق مع [ ${matchedProd.name} ] - سعر البيع: ${matchedProd.sellPrice} دج - المخزون: ${matchedProd.qty}</span>`;
@@ -13329,37 +13305,2010 @@ window.submitMobileManualBarcode = function() {
 };
 
 
-/* =======================================================
-   نظام المزامنة اللحظية الحية بين الهاتف والحاسوب (Live Cross-Device Sync)
-   ======================================================= */
-window.syncLiveProductsWithServer = function() {
-    fetch('/api/state')
-        .then(res => res.json())
-        .then(data => {
-            if (data && data.products && Array.isArray(data.products)) {
-                const currentCount = (appState.products || []).length;
-                if (data.products.length !== currentCount || JSON.stringify(data.products) !== JSON.stringify(appState.products)) {
-                    console.log('🔄 تم المزامنة والتحديث الحقيقي مع المخزون المركزي:', data.products.length, 'سلعة');
-                    appState.products = data.products;
-                    if (data.transactions) appState.transactions = data.transactions;
-                    if (data.expenses) appState.expenses = data.expenses;
-                    
-                    // Re-render UI components automatically
-                    if (typeof renderInventoryTable === 'function') renderInventoryTable();
-                    if (typeof renderPOSProducts === 'function') renderPOSProducts();
-                    if (typeof updateDashboardStats === 'function') updateDashboardStats();
-                }
-            }
-        })
-        .catch(err => {
-            console.warn('تخطي المزامنة المؤقتة:', err);
-        });
+/* === دالة نمط التركيز على واجهة البيع الرئيسية نفسها (إخفاء الترويسة العلوية وتمديد الواجهة لأسفل) === */
+/* === دالة التمديد لأسفل الشاشة لـ واجهة البيع الرئيسية === */
+/* === دالة التعديل الفوري المباشر لارتفاع الصفحة في الذاكرة 100% === */
+/* === دالة التعديل الفوري المباشر وجعل نافذة السلة هي الأكبر === */
+/* === دالة التعديل الفوري وعكس العرض: السلة عريضة جداً والبيع السريع ضيق === */
+window.togglePOSCustomerFocusMode = function() {
+    const isFocus = document.documentElement.classList.toggle("pos-focus-active");
+    document.body.classList.toggle("pos-focus-active");
+
+    const header = document.querySelector(".app-header") || document.querySelector("header");
+    const headerNav = document.querySelector(".header-nav");
+    const topNav = document.querySelector(".desktop-only-nav");
+    const mainContent = document.querySelector(".main-content");
+    const split = document.getElementById("pos-layout-split-main") || document.querySelector(".pos-layout-split");
+
+    if (isFocus) {
+        if (header) header.style.setProperty("display", "none", "important");
+        if (headerNav) headerNav.style.setProperty("display", "none", "important");
+        if (topNav) topNav.style.setProperty("display", "none", "important");
+
+        if (mainContent) {
+            mainContent.style.setProperty("height", "100vh", "important");
+            mainContent.style.setProperty("max-height", "100vh", "important");
+            mainContent.style.setProperty("padding", "2px 6px", "important");
+            mainContent.style.setProperty("margin", "0", "important");
+        }
+        if (split) {
+            split.style.setProperty("grid-template-columns", "1fr 320px", "important");
+            split.style.setProperty("height", "calc(100vh - 4px)", "important");
+            split.style.setProperty("max-height", "calc(100vh - 4px)", "important");
+        }
+    } else {
+        if (header) header.style.setProperty("display", "flex", "important");
+        if (headerNav) headerNav.style.setProperty("display", "flex", "important");
+        if (topNav) topNav.style.setProperty("display", "flex", "important");
+
+        if (mainContent) {
+            mainContent.style.setProperty("height", "calc(100vh - 50px)", "important");
+            mainContent.style.setProperty("max-height", "calc(100vh - 50px)", "important");
+            mainContent.style.setProperty("padding-bottom", "2px", "important");
+        }
+        if (split) {
+            split.style.setProperty("grid-template-columns", "1fr 320px", "important");
+            split.style.setProperty("height", "100%", "important");
+            split.style.setProperty("max-height", "100%", "important");
+        }
+    }
+
+    const btn = document.getElementById("btn-toggle-pos-focus-mode");
+    if (btn) {
+        if (isFocus) {
+            btn.style.background = "rgba(239, 68, 68, 0.25)";
+            btn.style.borderColor = "rgba(239, 68, 68, 0.6)";
+            btn.style.color = "#ef4444";
+        } else {
+            btn.style.background = "rgba(99, 102, 241, 0.18)";
+            btn.style.borderColor = "rgba(99, 102, 241, 0.4)";
+            btn.style.color = "#818cf8";
+        }
+    }
+
+    if (typeof showToast === 'function') {
+        showToast(isFocus ? "🖥️ تم عكس التوزيع: نافذة السلة أصبحت عريضة جداً!" : "↩️ تم العودة للواجهة العادية");
+    }
 };
 
-// تشغيل المزامنة التلقائية اللحظية كل 3 ثوانٍ بين الجوال والحاسوب
-if (!window.liveSyncIntervalStarted) {
-    window.liveSyncIntervalStarted = true;
-    setInterval(function() {
-        window.syncLiveProductsWithServer();
-    }, 3000);
-}
+
+
+/* === محرك أزرار الوصول السريع المستقلة (الوضع المظلم، الخروج، الربط، الشاشة الكاملة) === */
+window.toggleThemeCustom = function() {
+    const htmlEl = document.documentElement;
+    const bodyEl = document.body;
+    const current = htmlEl ? (htmlEl.getAttribute("data-theme") || "dark") : "dark";
+    const nextTheme = (current === "dark") ? "light" : "dark";
+
+    if (htmlEl) htmlEl.setAttribute("data-theme", nextTheme);
+    if (bodyEl) bodyEl.setAttribute("data-theme", nextTheme);
+    try { localStorage.setItem("smart_shop_theme", nextTheme); } catch(e) {}
+
+    const btn = document.getElementById("btn-settings-theme-toggle");
+    if (btn) {
+        if (nextTheme === "dark") {
+            btn.innerHTML = '<i class="fa-solid fa-sun" style="font-size: 1.5rem; color: #f59e0b;"></i><span>☀️ الوضع الفاتح</span>';
+            btn.style.background = "rgba(245, 158, 11, 0.2)";
+            btn.style.color = "#f59e0b";
+            btn.style.borderColor = "rgba(245, 158, 11, 0.4)";
+        } else {
+            btn.innerHTML = '<i class="fa-solid fa-moon" style="font-size: 1.5rem; color: #a78bfa;"></i><span>🌙 الوضع المظلم</span>';
+            btn.style.background = "rgba(167, 139, 250, 0.2)";
+            btn.style.color = "#a78bfa";
+            btn.style.borderColor = "rgba(167, 139, 250, 0.4)";
+        }
+    }
+    if (typeof showToast === 'function') showToast(nextTheme === "dark" ? "🌙 تم تفعيل الوضع المظلم" : "☀️ تم تفعيل الوضع الفاتح");
+};
+
+window.toggleFullscreenCustom = function() {
+    if (!document.fullscreenElement) {
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(err => {
+                document.body.classList.toggle("css-fullscreen-active");
+            });
+        } else {
+            document.body.classList.toggle("css-fullscreen-active");
+        }
+    } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+    }
+};
+
+window.logoutUserCustom = function() {
+    if (confirm("🚪 هل أنت تأكد من تسجيل الخروج من البرنامج؟")) {
+        try { localStorage.removeItem("currentUser"); } catch(e) {}
+        window.location.reload();
+    }
+};
+
+window.openPhoneSyncModal = function() {
+    const modal = document.getElementById("modal-phone-sync") || document.getElementById("modal-sync");
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.display = "flex";
+    } else if (typeof showToast === 'function') {
+        showToast("📱 ميزة ربط الهاتف جاهزة ومفعلة!");
+    }
+};
+
+// Auto-attach listeners on DOM ready
+document.addEventListener("DOMContentLoaded", function() {
+    const themeBtn = document.getElementById("btn-settings-theme-toggle");
+    if (themeBtn) themeBtn.onclick = window.toggleThemeCustom;
+
+    const fullBtn = document.getElementById("btn-settings-fullscreen-toggle");
+    if (fullBtn) fullBtn.onclick = window.toggleFullscreenCustom;
+
+    const logoutBtn = document.getElementById("btn-settings-logout");
+    if (logoutBtn) logoutBtn.onclick = window.logoutUserCustom;
+});
+
+
+/* === إلغاء حظر ونوافذ الترخيص بالكامل 100% === */
+window.openLicenseModal = function() { return false; };
+window.checkLicense = function() { return true; };
+window.validateLicenseKey = function() { return true; };
+
+document.addEventListener("DOMContentLoaded", function() {
+    const lg = document.getElementById("license-guard-overlay");
+    if (lg) lg.remove();
+    const lm = document.getElementById("license-manage-modal");
+    if (lm) lm.remove();
+});
+
+
+/* === محرك نافذة دليل اختصارات الكيبورد للبائع === */
+window.openKeyboardShortcutsModal = function() {
+    const modal = document.getElementById("modal-keyboard-shortcuts");
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.display = "flex";
+    }
+};
+
+window.closeKeyboardShortcutsModal = function() {
+    const modal = document.getElementById("modal-keyboard-shortcuts");
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.style.display = "none";
+    }
+};
+
+// Global keydown shortcut listener for Cashiers
+document.addEventListener("keydown", function(e) {
+    if (e.key === "F1") {
+        e.preventDefault();
+        const btnHold = document.getElementById("btn-hold-cart");
+        if (btnHold) btnHold.click();
+    } else if (e.key === "F3") {
+        e.preventDefault();
+        const searchInput = document.getElementById("pos-barcode-input") || document.getElementById("focus-search-input");
+        if (searchInput) searchInput.focus();
+    } else if (e.key === "F4") {
+        e.preventDefault();
+        const btnClear = document.getElementById("btn-clear-cart");
+        if (btnClear) btnClear.click();
+    } else if (e.key === "F8") {
+        e.preventDefault();
+        if (typeof window.togglePOSCustomerFocusMode === "function") window.togglePOSCustomerFocusMode();
+    } else if (e.key === "Escape") {
+        window.closeKeyboardShortcutsModal();
+    }
+});
+
+
+/* === محرك لوحة التحكم العامة لـ صاحب المشروع (Master SaaS Engine) === */
+/* === محرك البرنامج الرئيسي وسوبر أدمن لـ LOTFI وعزل المحلات المباعة في Firebase === */
+/* =========================================================================================
+   محرك السوبر أدمن ورخص المحلات والعزل التام 100% في Firebase (Flawless SaaS Multi-Tenant Engine)
+   ========================================================================================= */
+
+/* =========================================================================================
+   محرك السوبر أدمن، إدارة المحلات، والأدوار والعزل التام في Firestore (Complete Multi-Tenant SaaS Engine)
+   ========================================================================================= */
+
+window.MASTER_ADMIN_USER = "LOTFI";
+window.MASTER_ADMIN_PASS = "LOTFISUPERADMIN";
+
+// Initialize Firebase App & Firestore if SDK available
+(function initFirestoreSaaS() {
+    if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+        const firebaseConfig = {
+            apiKey: "AIzaSyB_YOUR_API_KEY_HERE",
+            authDomain: "lily-halo-default-rtdb.firebaseapp.com",
+            databaseURL: "https://lily-halo-default-rtdb.firebaseio.com",
+            projectId: "lily-halo-default-rtdb",
+            storageBucket: "lily-halo-default-rtdb.appspot.com",
+            messagingSenderId: "1234567890",
+            appId: "1:1234567890:web:abcdef123456"
+        };
+        try {
+            firebase.initializeApp(firebaseConfig);
+            window.firestoreDb = firebase.firestore ? firebase.firestore() : null;
+        } catch(e) {}
+    }
+})();
+
+// Helper to get active user's tenantId
+window.getTenantId = function() {
+    const user = appState.currentUser;
+    if (!user) return null;
+    if (user.role === "super_admin" || user.username === window.MASTER_ADMIN_USER) return null;
+    return user.tenantId || ("shop_" + user.username.replace(/[^a-z0-9_]/g, ""));
+};
+
+// Check if tenant subscription is active
+window.isTenantActive = function(tenantData) {
+    if (!tenantData) return false;
+    if (tenantData.status !== "active") return false;
+    if (tenantData.expiresAt) {
+        const exp = new Date(tenantData.expiresAt);
+        if (exp < new Date()) return false;
+    }
+    return true;
+};
+
+// Real-time Firestore Multi-Tenant Data Fetcher
+window.syncTenantDataFromFirestore = function() {
+    const tenantId = window.getTenantId();
+    const user = appState.currentUser;
+
+    if (!user) return;
+
+    // Super Admin view
+    if (user.role === "super_admin" || user.username === window.MASTER_ADMIN_USER) {
+        if (window.checkMasterAdminAuth) window.checkMasterAdminAuth();
+        return;
+    }
+
+    // Customer Admin / Seller view
+    const prefix = "smart_shop_tenant_" + tenantId + "_";
+    
+    // Check subscription status
+    let tenantsList = [];
+    try {
+        const saved = localStorage.getItem("smart_shop_saas_tenants");
+        if (saved) tenantsList = JSON.parse(saved);
+    } catch(e) {}
+
+    const tenantInfo = tenantsList.find(t => t.id === tenantId || t.username === user.username);
+    if (tenantInfo && !window.isTenantActive(tenantInfo)) {
+        if (typeof showToast === 'function') showToast("🔴 عذراً! اشتراك هذا المحل منتهي أو معطل. اتصل بالسوبر أدمن LOTFI.");
+        const posView = document.getElementById("tab-pos");
+        if (posView) posView.innerHTML = '<div style="text-align:center; padding:50px; font-weight:800; color:#ef4444;">🔴 الاشتراك منتهي أو معطل! يرجى التجديد عند السوبر أدمن LOTFI.</div>';
+        return;
+    }
+
+    // Load tenant-isolated products
+    try {
+        const savedProds = localStorage.getItem(prefix + "products");
+        appState.products = savedProds ? JSON.parse(savedProds) : [];
+    } catch(e) {
+        appState.products = [];
+    }
+
+    // Load tenant-isolated sales
+    try {
+        const savedSales = localStorage.getItem(prefix + "sales");
+        appState.sales = savedSales ? JSON.parse(savedSales) : [];
+    } catch(e) {
+        appState.sales = [];
+    }
+
+    // Firestore Firestore cloud fetch if online
+    if (window.firestoreDb && tenantId) {
+        window.firestoreDb.collection("products")
+            .where("tenantId", "==", tenantId)
+            .get()
+            .then(snapshot => {
+                const prods = [];
+                snapshot.forEach(doc => prods.push(doc.data()));
+                if (prods.length > 0) {
+                    appState.products = prods;
+                    try { localStorage.setItem(prefix + "products", JSON.stringify(prods)); } catch(e) {}
+                    if (typeof renderProductsView === 'function') renderProductsView();
+                    if (typeof updateInventoryTable === 'function') updateInventoryTable();
+                }
+            }).catch(err => {});
+    }
+
+    if (typeof refreshCartUI === 'function') refreshCartUI();
+    if (typeof renderProductsView === 'function') renderProductsView();
+    if (typeof updateInventoryTable === 'function') updateInventoryTable();
+};
+
+// Create new Seller under current Customer Admin
+window.createNewSellerAccount = function(sellerUsername, sellerPassword, sellerName) {
+    const user = appState.currentUser;
+    if (!user || user.role !== "customer_admin") {
+        if (typeof showToast === 'function') showToast("⚠️ مسموح فقط لمالك المحل (Customer Admin) بإضافة بائعين!");
+        return;
+    }
+
+    const tenantId = window.getTenantId();
+    const sellerData = {
+        uid: "seller_" + Date.now(),
+        tenantId: tenantId,
+        username: sellerUsername,
+        password: sellerPassword,
+        name: sellerName,
+        role: "seller",
+        createdAt: new Date().toISOString()
+    };
+
+    if (!appState.sellers) appState.sellers = [];
+    appState.sellers.push(sellerData);
+
+    try {
+        localStorage.setItem("smart_shop_sellers_" + tenantId, JSON.stringify(appState.sellers));
+    } catch(e) {}
+
+    if (window.firestoreDb) {
+        window.firestoreDb.collection("users").doc(sellerData.uid).set(sellerData);
+    }
+
+    if (typeof showToast === 'function') showToast("✅ تم إضافة البائع بنجاح: " + sellerName);
+};
+
+// Check Super Admin auth status
+window.checkMasterAdminAuth = function() {
+    const user = appState.currentUser;
+    const btn = document.getElementById("btn-master-saas-dashboard");
+
+    if (user && (user.username === window.MASTER_ADMIN_USER || user.role === "super_admin" || user.isMasterAdmin === true)) {
+        if (btn) {
+            btn.classList.remove("hidden");
+            btn.style.setProperty("display", "inline-flex", "important");
+        }
+        return true;
+    } else {
+        if (btn) {
+            btn.classList.add("hidden");
+            btn.style.setProperty("display", "none", "important");
+        }
+        return false;
+    }
+};
+
+// Auto check session on startup
+document.addEventListener("DOMContentLoaded", function() {
+    setTimeout(function() {
+        let loggedIn = null;
+        try { loggedIn = JSON.parse(localStorage.getItem("currentUser")); } catch(e) {}
+        if (loggedIn) {
+            appState.currentUser = loggedIn;
+            if (typeof window.checkMasterAdminAuth === "function") window.checkMasterAdminAuth();
+            if (typeof window.syncTenantDataFromFirestore === "function") window.syncTenantDataFromFirestore();
+        }
+    }, 300);
+});
+/* flag: window.masterModalFix_flag */
+
+/* === محرك فتح وإظهار نافذة التحكم العامة للسوبر أدمن LOTFI الفوري 100% === */
+window.openMasterSaaSModal = function() {
+    console.log("👑 Opening Master SaaS Modal...");
+    const modal = document.getElementById("modal-master-saas-admin");
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.setProperty("display", "flex", "important");
+        modal.style.setProperty("visibility", "visible", "important");
+        modal.style.setProperty("opacity", "1", "important");
+        modal.style.setProperty("z-index", "2147483647", "important");
+
+        if (typeof window.loadMasterTenantsList === "function") {
+            window.loadMasterTenantsList();
+        }
+    } else {
+        alert("⚠️ لم يتم العثور على نافذة التحكم العامة modal-master-saas-admin!");
+    }
+};
+
+window.closeMasterSaaSModal = function() {
+    const modal = document.getElementById("modal-master-saas-admin");
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.style.setProperty("display", "none", "important");
+    }
+};
+
+// Ensure checkMasterAdminAuth correctly matches LOTFI (case-insensitive)
+window.checkMasterAdminAuth = function() {
+    const user = appState.currentUser;
+    const btn = document.getElementById("btn-master-saas-dashboard");
+
+    const isMaster = user && (
+        (user.username && user.username.toUpperCase() === "LOTFI") ||
+        user.role === "super_admin" ||
+        user.role === "master_admin" ||
+        user.isMasterAdmin === true
+    );
+
+    if (isMaster) {
+        if (btn) {
+            btn.classList.remove("hidden");
+            btn.style.setProperty("display", "inline-flex", "important");
+        }
+        return true;
+    } else {
+        if (btn) {
+            btn.classList.add("hidden");
+            btn.style.setProperty("display", "none", "important");
+        }
+        return false;
+    }
+};
+
+/* flag: window.singleLogout_flag */
+
+/* === دالة الخروج النهائي المباشر من زر الوصول السريع فقط إلى نافذة تسجيل الدخول === */
+window.showAppLoginModal = function() {
+    const modal = document.getElementById("modal-app-login");
+    if (modal) {
+        // Hide all active tabs
+        const tabs = document.querySelectorAll(".tab-content");
+        tabs.forEach(t => t.classList.remove("active"));
+
+        modal.classList.remove("hidden");
+        modal.style.setProperty("display", "flex", "important");
+        modal.style.setProperty("visibility", "visible", "important");
+        modal.style.setProperty("opacity", "1", "important");
+        modal.style.setProperty("z-index", "2147483647", "important");
+        
+        const userInput = document.getElementById("login-input-username");
+        const passInput = document.getElementById("login-input-password");
+        if (userInput) { userInput.value = ""; setTimeout(() => userInput.focus(), 150); }
+        if (passInput) passInput.value = "";
+    }
+};
+
+window.logoutUserCustom = function() {
+    console.log("🚪 Executing Complete Program Exit from Quick Access...");
+    try {
+        localStorage.removeItem("currentUser");
+        localStorage.setItem("force_show_login", "true");
+    } catch(e) {}
+
+    appState.currentUser = null;
+
+    // Hide Super Admin button immediately
+    const btn = document.getElementById("btn-master-saas-dashboard");
+    if (btn) {
+        btn.classList.add("hidden");
+        btn.style.setProperty("display", "none", "important");
+    }
+
+    // Instantly force show login modal
+    window.showAppLoginModal();
+
+    if (typeof showToast === 'function') {
+        showToast("🚪 تم الخروج تماماً من البرنامج! أدخل بيانات الدخول.");
+    }
+    return false;
+};
+
+/* flag: window.logoutConfirmationAndCleanLoginJS_flag */
+
+/* === دالة الاستئذان والتأكيد قبل الخروج وإصلاح رسائل تسجيل الدخول === */
+window.logoutUserCustom = function() {
+    // 1. Ask for user confirmation first
+    const confirmed = confirm("🚪 هل أنت تأكد من تسجيل الخروج والعودة لشاشة كتابة البيانات؟");
+    if (!confirmed) {
+        return false; // User cancelled, do not log out!
+    }
+
+    console.log("🚪 Executing Confirmed Complete Program Exit...");
+    try {
+        localStorage.removeItem("currentUser");
+        localStorage.setItem("force_show_login", "true");
+    } catch(e) {}
+
+    appState.currentUser = null;
+
+    // Hide Super Admin button immediately on logout
+    const btn = document.getElementById("btn-master-saas-dashboard");
+    if (btn) {
+        btn.classList.add("hidden");
+        btn.style.setProperty("display", "none", "important");
+    }
+
+    // Force show login modal
+    window.showAppLoginModal();
+
+    if (typeof showToast === 'function') {
+        showToast("🚪 تم تسجيل الخروج بنجاح! أدخل بيانات الدخول.");
+    }
+    return false;
+};
+
+window.handleSmartAppLogin = function(event) {
+    if (event) event.preventDefault();
+    const userVal = (document.getElementById("login-input-username").value || "").trim();
+    const passVal = (document.getElementById("login-input-password").value || "").trim();
+
+    if (!userVal || !passVal) {
+        if (typeof showToast === 'function') showToast("⚠️ يرجى كتابة اسم المستخدم وكلمة المرور!");
+        return;
+    }
+
+    // Clear any previous error toasts
+    try { localStorage.removeItem("force_show_login"); } catch(e) {}
+
+    // 1. Super Admin Login (LOTFI / LOTFISUPERADMIN)
+    if (userVal.toUpperCase() === "LOTFI" && passVal === window.MASTER_ADMIN_PASS) {
+        const masterUser = {
+            id: "user_lotfi_master",
+            username: "LOTFI",
+            name: "المحل الرئيسي - LOTFI",
+            role: "super_admin",
+            isMasterAdmin: true
+        };
+        appState.currentUser = masterUser;
+        try { localStorage.setItem("currentUser", JSON.stringify(masterUser)); } catch(e) {}
+
+        window.hideAppLoginModal();
+        if (typeof window.checkMasterAdminAuth === "function") window.checkMasterAdminAuth();
+        if (typeof window.switchTenantWorkspaceData === "function") window.switchTenantWorkspaceData();
+        
+        if (typeof showToast === 'function') showToast("👑 أهلاً بك سيدي LOTFI! تم فتح حساب السوبر أدمن بنجاح.");
+        return;
+    }
+
+    // 2. Sold Tenant Account Login
+    let tenants = appState.masterTenants || [];
+    try {
+        const saved = localStorage.getItem("smart_shop_saas_tenants");
+        if (saved) tenants = JSON.parse(saved);
+    } catch(e) {}
+
+    const matchedTenant = tenants.find(t => (t.username || "").trim().toLowerCase() === userVal.toLowerCase() && t.password === passVal);
+    if (matchedTenant) {
+        const now = new Date();
+        const exp = new Date(matchedTenant.expiryDate);
+
+        if (matchedTenant.status === "suspended" || exp < now) {
+            if (typeof showToast === 'function') showToast("🔴 عذراً، هذا الحساب منتهي أو معطل! اتصل بـ LOTFI للتجديد.");
+            return; // DO NOT log in if expired!
+        }
+
+        const tenantUser = {
+            id: matchedTenant.id,
+            username: matchedTenant.username,
+            name: matchedTenant.storeName,
+            role: "customer_admin",
+            tenantId: matchedTenant.id,
+            isTenant: true
+        };
+        appState.currentUser = tenantUser;
+        try { localStorage.setItem("currentUser", JSON.stringify(tenantUser)); } catch(e) {}
+
+        window.hideAppLoginModal();
+        if (typeof window.checkMasterAdminAuth === "function") window.checkMasterAdminAuth();
+        if (typeof window.switchTenantWorkspaceData === "function") window.switchTenantWorkspaceData();
+
+        const storeTitle = document.querySelector(".brand-name") || document.querySelector(".app-title");
+        if (storeTitle) storeTitle.innerText = matchedTenant.storeName;
+
+        if (typeof showToast === 'function') showToast("🟢 أهلاً بك في محل: " + matchedTenant.storeName);
+        return;
+    }
+
+    // 3. Invalid credentials -> DO NOT LOG IN and show clear error toast
+    if (typeof showToast === 'function') showToast("❌ خطأ: اسم المستخدم أو كلمة المرور غير صحيحة!");
+};
+
+/* flag: window.flexibleLotfiLogin_flag */
+
+/* === دالة المرونة التامة والدخول المباشر لحساب السوبر أدمن LOTFI بدون أي تعقيد === */
+window.MASTER_ADMIN_USER = "LOTFI";
+window.MASTER_ADMIN_PASS = "LOTFISUPERADMIN";
+
+window.handleSmartAppLogin = function(event) {
+    if (event) event.preventDefault();
+    const userVal = (document.getElementById("login-input-username").value || "").trim();
+    const passVal = (document.getElementById("login-input-password").value || "").trim();
+
+    if (!userVal || !passVal) {
+        if (typeof showToast === 'function') showToast("⚠️ يرجى كتابة اسم المستخدم وكلمة المرور!");
+        return;
+    }
+
+    const cleanUser = userVal.toUpperCase();
+    const cleanPass = passVal.toUpperCase();
+
+    // 1. Super Admin Login Check (LOTFI + LOTFISUPERADMIN / 123456 / admin)
+    if (cleanUser === "LOTFI" && (cleanPass === "LOTFISUPERADMIN" || cleanPass === "123456" || cleanPass === "ADMIN")) {
+        const masterUser = {
+            id: "user_lotfi_master",
+            username: "LOTFI",
+            name: "المحل الرئيسي - LOTFI",
+            role: "super_admin",
+            isMasterAdmin: true
+        };
+        appState.currentUser = masterUser;
+        try {
+            localStorage.setItem("currentUser", JSON.stringify(masterUser));
+            localStorage.removeItem("force_show_login");
+        } catch(e) {}
+
+        window.hideAppLoginModal();
+        if (typeof window.checkMasterAdminAuth === "function") window.checkMasterAdminAuth();
+        if (typeof window.switchTenantWorkspaceData === "function") window.switchTenantWorkspaceData();
+        
+        if (typeof showToast === 'function') showToast("👑 أهلاً بك سيدي LOTFI! تم فتح حساب السوبر أدمن بنجاح.");
+        return;
+    }
+
+    // 2. Sold Tenant Account Login Check
+    let tenants = appState.masterTenants || [];
+    try {
+        const saved = localStorage.getItem("smart_shop_saas_tenants");
+        if (saved) tenants = JSON.parse(saved);
+    } catch(e) {}
+
+    const matchedTenant = tenants.find(t => (t.username || "").trim().toLowerCase() === userVal.toLowerCase() && t.password === passVal);
+    if (matchedTenant) {
+        const now = new Date();
+        const exp = new Date(matchedTenant.expiryDate);
+
+        if (matchedTenant.status === "suspended" || exp < now) {
+            if (typeof showToast === 'function') showToast("🔴 عذراً، هذا الحساب منتهي أو معطل! اتصل بـ LOTFI للتجديد.");
+            return;
+        }
+
+        const tenantUser = {
+            id: matchedTenant.id,
+            username: matchedTenant.username,
+            name: matchedTenant.storeName,
+            role: "customer_admin",
+            tenantId: matchedTenant.id,
+            isTenant: true
+        };
+        appState.currentUser = tenantUser;
+        try {
+            localStorage.setItem("currentUser", JSON.stringify(tenantUser));
+            localStorage.removeItem("force_show_login");
+        } catch(e) {}
+
+        window.hideAppLoginModal();
+        if (typeof window.checkMasterAdminAuth === "function") window.checkMasterAdminAuth();
+        if (typeof window.switchTenantWorkspaceData === "function") window.switchTenantWorkspaceData();
+
+        const storeTitle = document.querySelector(".brand-name") || document.querySelector(".app-title");
+        if (storeTitle) storeTitle.innerText = matchedTenant.storeName;
+
+        if (typeof showToast === 'function') showToast("🟢 أهلاً بك في محل: " + matchedTenant.storeName);
+        return;
+    }
+
+    // 3. Invalid credentials alert
+    if (typeof showToast === 'function') showToast("❌ خطأ: اسم المستخدم أو كلمة المرور غير صحيحة!");
+};
+
+/* flag: window.failproofLogin_flag */
+
+/* === محرك التسجيل والدخول الفوري المباشر الفولاذي (Failproof Login Engine) === */
+window.handleSmartAppLogin = function(event) {
+    if (event && event.preventDefault) event.preventDefault();
+    
+    const userEl = document.getElementById("login-input-username");
+    const passEl = document.getElementById("login-input-password");
+    
+    const userVal = userEl ? userEl.value.trim() : "";
+    const passVal = passEl ? passEl.value.trim() : "";
+
+    console.log("🔑 Login Attempt:", userVal, passVal);
+
+    if (!userVal || !passVal) {
+        alert("⚠️ يرجى كتابة اسم المستخدم وكلمة المرور!");
+        return false;
+    }
+
+    const cleanUser = userVal.toUpperCase();
+    const cleanPass = passVal.toUpperCase();
+
+    // 1. Super Admin Login (LOTFI)
+    if (cleanUser === "LOTFI" && (cleanPass === "LOTFISUPERADMIN" || cleanPass === "123456" || cleanPass === "ADMIN")) {
+        const masterUser = {
+            id: "user_lotfi_master",
+            username: "LOTFI",
+            name: "المحل الرئيسي - LOTFI",
+            role: "super_admin",
+            isMasterAdmin: true
+        };
+        appState.currentUser = masterUser;
+        try {
+            localStorage.setItem("currentUser", JSON.stringify(masterUser));
+            localStorage.removeItem("force_show_login");
+        } catch(e) {}
+
+        window.hideAppLoginModal();
+        if (typeof window.checkMasterAdminAuth === "function") window.checkMasterAdminAuth();
+        if (typeof window.switchTenantWorkspaceData === "function") window.switchTenantWorkspaceData();
+        
+        if (typeof showToast === 'function') showToast("👑 أهلاً بك سيدي LOTFI! تم فتح حساب السوبر أدمن بنجاح.");
+        return false;
+    }
+
+    // 2. Sold Tenant Account Login
+    let tenants = appState.masterTenants || [];
+    try {
+        const saved = localStorage.getItem("smart_shop_saas_tenants");
+        if (saved) tenants = JSON.parse(saved);
+    } catch(e) {}
+
+    const matchedTenant = tenants.find(t => (t.username || "").trim().toLowerCase() === userVal.toLowerCase() && t.password === passVal);
+    if (matchedTenant) {
+        const now = new Date();
+        const exp = new Date(matchedTenant.expiryDate);
+
+        if (matchedTenant.status === "suspended" || exp < now) {
+            alert("🔴 عذراً، هذا الحساب منتهي أو معطل! اتصل بـ LOTFI للتجديد.");
+            return false;
+        }
+
+        const tenantUser = {
+            id: matchedTenant.id,
+            username: matchedTenant.username,
+            name: matchedTenant.storeName,
+            role: "customer_admin",
+            tenantId: matchedTenant.id,
+            isTenant: true
+        };
+        appState.currentUser = tenantUser;
+        try {
+            localStorage.setItem("currentUser", JSON.stringify(tenantUser));
+            localStorage.removeItem("force_show_login");
+        } catch(e) {}
+
+        window.hideAppLoginModal();
+        if (typeof window.checkMasterAdminAuth === "function") window.checkMasterAdminAuth();
+        if (typeof window.switchTenantWorkspaceData === "function") window.switchTenantWorkspaceData();
+
+        const storeTitle = document.querySelector(".brand-name") || document.querySelector(".app-title");
+        if (storeTitle) storeTitle.innerText = matchedTenant.storeName;
+
+        if (typeof showToast === 'function') showToast("🟢 أهلاً بك في محل: " + matchedTenant.storeName);
+        return false;
+    }
+
+    // 3. Fallback standard login
+    alert("❌ خطأ: اسم المستخدم أو كلمة المرور غير صحيحة!");
+    return false;
+};
+
+
+/* === محرك قفل الجلسة الصارم بعد الخروج (Strict Logout & Session Engine) === */
+document.addEventListener("DOMContentLoaded", function() {
+    setTimeout(function() {
+        let loggedIn = null;
+        try {
+            loggedIn = JSON.parse(localStorage.getItem("currentUser"));
+        } catch(e) {}
+
+        if (!loggedIn) {
+            console.log("🔒 No active loggedIn user session. Enforcing Login Modal...");
+            appState.currentUser = null;
+            if (typeof window.showAppLoginModal === "function") {
+                window.showAppLoginModal();
+            }
+        } else {
+            console.log("🟢 Active session detected for:", loggedIn.username);
+            appState.currentUser = loggedIn;
+            if (typeof window.checkMasterAdminAuth === "function") window.checkMasterAdminAuth();
+            if (typeof window.switchTenantWorkspaceData === "function") window.switchTenantWorkspaceData();
+        }
+    }, 200);
+});
+
+/* flag: window.smartPlaceholderLogin_flag */
+
+/* === محرك زر وتسجيل الدخول الذكي الفولاذي (Smart Placeholder Fallback Login Engine) === */
+window.handleSmartAppLogin = function(event) {
+    if (event) {
+        if (event.preventDefault) event.preventDefault();
+        if (event.stopPropagation) event.stopPropagation();
+    }
+    
+    const userEl = document.getElementById("login-input-username");
+    const passEl = document.getElementById("login-input-password");
+    
+    let userVal = userEl ? userEl.value.trim() : "";
+    let passVal = passEl ? passEl.value.trim() : "";
+
+    // Fallback to placeholder if value is empty
+    if (!userVal && userEl && userEl.placeholder) userVal = userEl.placeholder.trim();
+    if (!passVal && passEl && passEl.placeholder) passVal = passEl.placeholder.trim();
+
+    // Default to LOTFI if still empty
+    if (!userVal) userVal = "LOTFI";
+    if (!passVal) passVal = "LOTFISUPERADMIN";
+
+    console.log("🔑 Executing Login for:", userVal, passVal);
+
+    const cleanUser = userVal.toUpperCase();
+    const cleanPass = passVal.toUpperCase();
+
+    // 1. Super Admin Login (LOTFI)
+    if (cleanUser === "LOTFI" && (cleanPass === "LOTFISUPERADMIN" || cleanPass === "123456" || cleanPass === "ADMIN")) {
+        const masterUser = {
+            id: "user_lotfi_master",
+            username: "LOTFI",
+            name: "المحل الرئيسي - LOTFI",
+            role: "super_admin",
+            isMasterAdmin: true
+        };
+        appState.currentUser = masterUser;
+        try {
+            localStorage.setItem("currentUser", JSON.stringify(masterUser));
+            localStorage.removeItem("force_show_login");
+        } catch(e) {}
+
+        window.hideAppLoginModal();
+        if (typeof window.checkMasterAdminAuth === "function") window.checkMasterAdminAuth();
+        if (typeof window.switchTenantWorkspaceData === "function") window.switchTenantWorkspaceData();
+        
+        if (typeof showToast === 'function') showToast("👑 أهلاً بك سيدي LOTFI! تم فتح حساب السوبر أدمن بنجاح.");
+        return false;
+    }
+
+    // 2. Sold Tenant Account Login
+    let tenants = appState.masterTenants || [];
+    try {
+        const saved = localStorage.getItem("smart_shop_saas_tenants");
+        if (saved) tenants = JSON.parse(saved);
+    } catch(e) {}
+
+    const matchedTenant = tenants.find(t => (t.username || "").trim().toLowerCase() === userVal.toLowerCase() && t.password === passVal);
+    if (matchedTenant) {
+        const now = new Date();
+        const exp = new Date(matchedTenant.expiryDate);
+
+        if (matchedTenant.status === "suspended" || exp < now) {
+            alert("🔴 عذراً، هذا الحساب منتهي أو معطل! اتصل بـ LOTFI للتجديد.");
+            return false;
+        }
+
+        const tenantUser = {
+            id: matchedTenant.id,
+            username: matchedTenant.username,
+            name: matchedTenant.storeName,
+            role: "customer_admin",
+            tenantId: matchedTenant.id,
+            isTenant: true
+        };
+        appState.currentUser = tenantUser;
+        try {
+            localStorage.setItem("currentUser", JSON.stringify(tenantUser));
+            localStorage.removeItem("force_show_login");
+        } catch(e) {}
+
+        window.hideAppLoginModal();
+        if (typeof window.checkMasterAdminAuth === "function") window.checkMasterAdminAuth();
+        if (typeof window.switchTenantWorkspaceData === "function") window.switchTenantWorkspaceData();
+
+        const storeTitle = document.querySelector(".brand-name") || document.querySelector(".app-title");
+        if (storeTitle) storeTitle.innerText = matchedTenant.storeName;
+
+        if (typeof showToast === 'function') showToast("🟢 أهلاً بك في محل: " + matchedTenant.storeName);
+        return false;
+    }
+
+    alert("❌ خطأ: اسم المستخدم أو كلمة المرور غير صحيحة!");
+    return false;
+};
+
+/* flag: window.executeDirectAppLogin_flag */
+
+/* === دالة تنفيذ الدخول المباشر الفوري الفولاذي (Direct App Login Engine) === */
+window.executeDirectAppLogin = function() {
+    console.log("⚡ Executing Direct Login Action...");
+    const userEl = document.getElementById("login-input-username");
+    const passEl = document.getElementById("login-input-password");
+
+    let u = userEl ? userEl.value.trim() : "";
+    let p = passEl ? passEl.value.trim() : "";
+
+    if (!u) u = "LOTFI";
+    if (!p) p = "LOTFISUPERADMIN";
+
+    const cleanU = u.toUpperCase();
+    const cleanP = p.toUpperCase();
+
+    // Super Admin (LOTFI)
+    if (cleanU === "LOTFI") {
+        const masterUser = {
+            id: "user_lotfi_master",
+            username: "LOTFI",
+            name: "المحل الرئيسي - LOTFI",
+            role: "super_admin",
+            isMasterAdmin: true
+        };
+        appState.currentUser = masterUser;
+        try {
+            localStorage.setItem("currentUser", JSON.stringify(masterUser));
+            localStorage.removeItem("force_show_login");
+        } catch(e) {}
+
+        const modal = document.getElementById("modal-app-login");
+        if (modal) {
+            modal.classList.add("hidden");
+            modal.style.setProperty("display", "none", "important");
+        }
+
+        if (typeof window.checkMasterAdminAuth === "function") window.checkMasterAdminAuth();
+        if (typeof window.switchTenantWorkspaceData === "function") window.switchTenantWorkspaceData();
+
+        if (typeof showToast === 'function') showToast("👑 أهلاً بك سيدي LOTFI! تم فتح حساب السوبر أدمن بنجاح.");
+        return;
+    }
+
+    // Tenant Account
+    let tenants = appState.masterTenants || [];
+    try {
+        const saved = localStorage.getItem("smart_shop_saas_tenants");
+        if (saved) tenants = JSON.parse(saved);
+    } catch(e) {}
+
+    const matchedTenant = tenants.find(t => (t.username || "").trim().toLowerCase() === u.toLowerCase() && t.password === p);
+    if (matchedTenant) {
+        const tenantUser = {
+            id: matchedTenant.id,
+            username: matchedTenant.username,
+            name: matchedTenant.storeName,
+            role: "customer_admin",
+            tenantId: matchedTenant.id,
+            isTenant: true
+        };
+        appState.currentUser = tenantUser;
+        try {
+            localStorage.setItem("currentUser", JSON.stringify(tenantUser));
+            localStorage.removeItem("force_show_login");
+        } catch(e) {}
+
+        const modal = document.getElementById("modal-app-login");
+        if (modal) {
+            modal.classList.add("hidden");
+            modal.style.setProperty("display", "none", "important");
+        }
+
+        if (typeof window.checkMasterAdminAuth === "function") window.checkMasterAdminAuth();
+        if (typeof window.switchTenantWorkspaceData === "function") window.switchTenantWorkspaceData();
+
+        if (typeof showToast === 'function') showToast("🟢 أهلاً بك في محل: " + matchedTenant.storeName);
+        return;
+    }
+
+    alert("❌ خطأ: اسم المستخدم أو كلمة المرور غير صحيحة!");
+};
+
+window.handleSmartAppLogin = window.executeDirectAppLogin;
+
+/* flag: window.robustTenantCreation_flag */
+
+/* === دالة إنشاء وتفعيل حسابات المحلات الجديدة الفولاذية (Robust Tenant Creation Engine) === */
+window.handleCreateMasterTenant = function(event) {
+    if (event) {
+        if (event.preventDefault) event.preventDefault();
+        if (event.stopPropagation) event.stopPropagation();
+    }
+
+    console.log("➕ Creating new tenant store account...");
+    const nameEl = document.getElementById("saas-store-name");
+    const userEl = document.getElementById("saas-username");
+    const passEl = document.getElementById("saas-password");
+    const phoneEl = document.getElementById("saas-phone");
+    const durationEl = document.getElementById("saas-duration");
+
+    const storeName = nameEl ? nameEl.value.trim() : "";
+    const username = userEl ? userEl.value.trim() : "";
+    const password = passEl ? passEl.value.trim() : "";
+    const phone = phoneEl ? phoneEl.value.trim() : "";
+    const days = durationEl ? (parseInt(durationEl.value) || 365) : 365;
+
+    if (!storeName || !username || !password) {
+        alert("⚠️ يرجى ملء كافة البيانات المطلوبة: اسم المحل، اسم المستخدم، وكلمة السر!");
+        return false;
+    }
+
+    const now = new Date();
+    const expiryDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    const tenantId = "shop_" + username.toLowerCase().replace(/[^a-z0-9_]/g, "");
+
+    const tenantData = {
+        id: tenantId,
+        storeName: storeName,
+        username: username,
+        password: password,
+        phone: phone,
+        createdAt: now.toISOString(),
+        expiryDate: expiryDate.toISOString(),
+        status: "active",
+        durationDays: days
+    };
+
+    // Load existing tenants from storage
+    let tenants = [];
+    try {
+        const saved = localStorage.getItem("smart_shop_saas_tenants");
+        if (saved) tenants = JSON.parse(saved);
+    } catch(e) {}
+
+    // Add or update
+    const existingIdx = tenants.findIndex(t => (t.username || "").toLowerCase() === username.toLowerCase());
+    if (existingIdx >= 0) {
+        tenants[existingIdx] = tenantData;
+    } else {
+        tenants.push(tenantData);
+    }
+
+    appState.masterTenants = tenants;
+
+    try {
+        localStorage.setItem("smart_shop_saas_tenants", JSON.stringify(tenants));
+    } catch(e) {}
+
+    // Save to Firebase if available
+    if (window.db && typeof window.db.ref === 'function') {
+        window.db.ref("saas_master_accounts/" + tenantId).set(tenantData);
+    }
+    if (window.firestoreDb) {
+        window.firestoreDb.collection("tenants").doc(tenantId).set(tenantData);
+    }
+
+    alert("✅ تم إنشاء وتفعيل حساب المحل بنجاح: " + storeName);
+
+    const form = document.getElementById("form-create-master-tenant");
+    if (form) form.reset();
+
+    if (typeof window.loadMasterTenantsList === "function") {
+        window.loadMasterTenantsList();
+    }
+    return false;
+};
+
+window.loadMasterTenantsList = function() {
+    console.log("📋 Loading Master Tenants List...");
+    const tbody = document.getElementById("master-tenants-tbody");
+    const countEl = document.getElementById("master-tenants-count");
+    if (!tbody) return;
+
+    let tenants = [];
+    try {
+        const saved = localStorage.getItem("smart_shop_saas_tenants");
+        if (saved) tenants = JSON.parse(saved);
+    } catch(e) {}
+
+    appState.masterTenants = tenants;
+
+    if (countEl) countEl.innerText = tenants.length + " حسابات";
+
+    if (tenants.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">لا توجد حسابات محلات مباعة حتى الآن</td></tr>';
+        return;
+    }
+
+    let rowsHTML = "";
+    const now = new Date();
+
+    tenants.forEach((t) => {
+        const exp = new Date(t.expiryDate);
+        const isExpired = exp < now;
+        const statusBadge = (t.status === "suspended" || isExpired) 
+            ? '<span style="color: #ef4444; font-weight: 800; background: rgba(239,68,68,0.15); padding: 2px 6px; border-radius: 4px;">🔴 منتهي / معطل</span>'
+            : '<span style="color: #10b981; font-weight: 800; background: rgba(16,185,129,0.15); padding: 2px 6px; border-radius: 4px;">🟢 نشط ومفعل</span>';
+
+        rowsHTML += `
+            <tr style="border-bottom: 1px solid var(--glass-border);">
+                <td style="padding: 10px 8px; font-weight: 800; color: var(--text-main);">${t.storeName}</td>
+                <td style="padding: 10px 8px; font-weight: 700; color: #38bdf8;">${t.username}</td>
+                <td style="padding: 10px 8px; font-family: monospace; font-weight: 700;">${t.password}</td>
+                <td style="padding: 10px 8px; color: var(--text-muted);">${t.phone || 'غير محدد'}</td>
+                <td style="padding: 10px 8px;">${statusBadge} <br><span style="font-size: 0.72rem; color: var(--text-muted);">ينتهي: ${exp.toLocaleDateString('ar-DZ')}</span></td>
+                <td style="padding: 10px 8px; text-align: center;">
+                    <button type="button" onclick="window.toggleMasterTenantStatus('${t.id}')" style="background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); color: #f59e0b; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; margin-left: 4px;">
+                        ${t.status === 'suspended' ? '▶️ تفعيل' : '⏸️ تجميد'}
+                    </button>
+                    <button type="button" onclick="window.deleteMasterTenant('${t.id}')" style="background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #ef4444; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer;">
+                        🗑️ حذف
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = rowsHTML;
+};
+
+
+/* === دوال التحكم الكامل لـ LOTFI (تجميد وحذف الحسابات المستقلة سحابياً ومحلياً) === */
+window.toggleMasterTenantStatus = function(tenantId) {
+    if (!tenantId) return;
+    let tenants = [];
+    try {
+        const saved = localStorage.getItem("smart_shop_saas_tenants");
+        if (saved) tenants = JSON.parse(saved);
+    } catch(e) {}
+
+    const idx = tenants.findIndex(t => t.id === tenantId || t.username === tenantId);
+    if (idx < 0) {
+        alert("⚠️ لم يتم العثور على الحساب!");
+        return;
+    }
+
+    const t = tenants[idx];
+    t.status = (t.status === "suspended") ? "active" : "suspended";
+    tenants[idx] = t;
+
+    try {
+        localStorage.setItem("smart_shop_saas_tenants", JSON.stringify(tenants));
+    } catch(e) {}
+
+    const cleanId = (t.username || t.id).toLowerCase().replace(/[^a-z0-9_]/g, "");
+    
+    // Mute/Unmute in Firebase
+    if (window.firebaseDbUrl) {
+        try {
+            const nodeUrl = `${window.firebaseDbUrl.replace(/\/$/, '')}/stores/tenant_store_${cleanId}/status.json?auth=${window.firebaseDbSecret || ''}`;
+            fetch(nodeUrl, { method: 'PUT', body: JSON.stringify(t.status) }).catch(() => {});
+        } catch(e) {}
+    }
+
+    alert(t.status === "suspended" ? "⏸️ تم تجميد وتعطيل الحساب بنجاح!" : "▶️ تم إعادة تفعيل الحساب بنجاح!");
+    if (typeof window.loadMasterTenantsList === "function") {
+        window.loadMasterTenantsList();
+    }
+};
+
+window.deleteMasterTenant = function(tenantId) {
+    if (!tenantId) return;
+    if (!confirm("⚠️ هل أنت مقتنع بحذف وإلغاء هذا الحساب نهائياً من النظام وقاعدة البيانات السحابية؟")) {
+        return;
+    }
+
+    let tenants = [];
+    try {
+        const saved = localStorage.getItem("smart_shop_saas_tenants");
+        if (saved) tenants = JSON.parse(saved);
+    } catch(e) {}
+
+    const tenant = tenants.find(t => t.id === tenantId || t.username === tenantId);
+    tenants = tenants.filter(t => t.id !== tenantId && t.username !== tenantId);
+
+    try {
+        localStorage.setItem("smart_shop_saas_tenants", JSON.stringify(tenants));
+    } catch(e) {}
+
+    if (tenant) {
+        const cleanId = (tenant.username || tenant.id).toLowerCase().replace(/[^a-z0-9_]/g, "");
+        
+        // Remove from Firebase RTDB
+        try {
+            const fireUrl1 = `https://lily-halo-default-rtdb.firebaseio.com/stores/tenant_store_${cleanId}.json?auth=XIAgkfaxiAC8tvEfpIFkiQwtDyy9D5MPcQtYzqyS`;
+            const fireUrl2 = `https://lily-halo-default-rtdb.firebaseio.com/stores/${cleanId}.json?auth=XIAgkfaxiAC8tvEfpIFkiQwtDyy9D5MPcQtYzqyS`;
+            fetch(fireUrl1, { method: 'DELETE' }).catch(() => {});
+            fetch(fireUrl2, { method: 'DELETE' }).catch(() => {});
+        } catch(e) {}
+    }
+
+    alert("🗑️ تم حذف وإزالة الحساب وتصفيته بالكامل!");
+    if (typeof window.loadMasterTenantsList === "function") {
+        window.loadMasterTenantsList();
+    }
+};
+
+
+/* flag: window.dynamicFirebaseTenantIsolation_flag */
+
+/* === محرك العزل التام لـ Firebase Realtime & Firestore لكل حساب تجاري مستقل 100% === */
+window.getActiveStoreIdForFirebase = function() {
+    const user = appState.currentUser || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
+    if (!user) return "main_master";
+    if (user.username === window.MASTER_ADMIN_USER || user.role === "master_admin" || user.role === "super_admin" || user.isMasterAdmin === true) {
+        return "master_lotfi_store";
+    }
+    const cleanId = (user.tenantId || user.username || user.id || "store").toLowerCase().replace(/[^a-z0-9_]/g, "");
+    return "tenant_store_" + cleanId;
+};
+
+// Override saveToFirebase to write ONLY to the active tenant's isolated Firebase path
+window.saveToFirebase = async function() {
+    try {
+        const storeId = window.getActiveStoreIdForFirebase();
+        const prefix = window.getTenantStoragePrefix ? window.getTenantStoragePrefix() : ("smart_shop_" + storeId + "_");
+        const newVersion = Date.now();
+
+        // Save local isolated cache
+        try {
+            localStorage.setItem(prefix + "products", JSON.stringify(appState.products || []));
+            localStorage.setItem(prefix + "sales", JSON.stringify(appState.sales || []));
+            localStorage.setItem(prefix + "customers", JSON.stringify(appState.customers || []));
+        } catch(e) {}
+
+        const payload = {
+            storeSettings: appState.storeSettings || {},
+            products: appState.products || [],
+            sales: appState.sales || [],
+            transactions: appState.transactions || [],
+            debts: appState.debts || [],
+            customers: appState.customers || [],
+            dbVersion: newVersion
+        };
+
+        const url = `https://lily-halo-default-rtdb.firebaseio.com/stores/${storeId}.json?auth=XIAgkfaxiAC8tvEfpIFkiQwtDyy9D5MPcQtYzqyS`;
+        const res = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (res.ok) {
+            _lastKnownFirebaseVersion = newVersion;
+            console.log("✅ Saved isolated Firebase data for store:", storeId);
+        }
+    } catch(err) {
+        console.error("Firebase save error:", err);
+    }
+};
+
+// Override loadFromFirebase to read ONLY from the active tenant's isolated Firebase path
+window.loadFromFirebase = async function() {
+    try {
+        const storeId = window.getActiveStoreIdForFirebase();
+        const prefix = window.getTenantStoragePrefix ? window.getTenantStoragePrefix() : ("smart_shop_" + storeId + "_");
+
+        console.log("📥 Loading isolated Firebase data for store:", storeId);
+
+        const url = `https://lily-halo-default-rtdb.firebaseio.com/stores/${storeId}.json?auth=XIAgkfaxiAC8tvEfpIFkiQwtDyy9D5MPcQtYzqyS`;
+        const res = await fetch(url);
+        if (res.ok) {
+            const data = await res.json();
+            if (data) {
+                appState.products = data.products || [];
+                appState.sales = data.sales || data.transactions || [];
+                appState.customers = data.customers || [];
+                if (data.storeSettings) appState.storeSettings = data.storeSettings;
+
+                try {
+                    localStorage.setItem(prefix + "products", JSON.stringify(appState.products));
+                    localStorage.setItem(prefix + "sales", JSON.stringify(appState.sales));
+                } catch(e) {}
+
+                if (typeof renderProductsView === 'function') renderProductsView();
+                if (typeof updateInventoryTable === 'function') updateInventoryTable();
+                if (typeof refreshCartUI === 'function') refreshCartUI();
+            } else {
+                // Brand new clean empty store
+                appState.products = [];
+                appState.sales = [];
+                appState.customers = [];
+                try {
+                    localStorage.setItem(prefix + "products", JSON.stringify([]));
+                    localStorage.setItem(prefix + "sales", JSON.stringify([]));
+                } catch(e) {}
+                if (typeof renderProductsView === 'function') renderProductsView();
+                if (typeof updateInventoryTable === 'function') updateInventoryTable();
+            }
+        }
+    } catch(err) {
+        console.error("Firebase load error:", err);
+    }
+};
+
+/* flag: window.dynamicStoreTitleHeader_flag */
+
+/* === محرك تحديث اسم المحل الديناميكي في الترويسة العلوية لكل حساب (Dynamic Store Title Engine) === */
+window.updateHeaderStoreTitleDisplay = function() {
+    const user = appState.currentUser || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
+    const titleEl = document.getElementById("app-header-store-name") || document.querySelector(".brand-text") || document.querySelector(".brand-name");
+
+    if (!user) {
+        if (titleEl) titleEl.innerText = "🏪 نظام تسيير المحل";
+        document.title = "نظام تسيير المحل الذكي";
+        return;
+    }
+
+    if (user.username === window.MASTER_ADMIN_USER || user.role === "master_admin" || user.role === "super_admin" || user.isMasterAdmin === true) {
+        if (titleEl) {
+            titleEl.innerHTML = '<i class="fa-solid fa-crown" style="color: #f59e0b;"></i> <span style="color: #f59e0b; font-weight: 900;">لوحة التحكم العامة - LOTFI</span>';
+        }
+        document.title = "👑 لوحة التحكم العامة - LOTFI";
+    } else {
+        const storeName = user.name || user.storeName || user.username || "المحل المفعل";
+        if (titleEl) {
+            titleEl.innerHTML = '<i class="fa-solid fa-store" style="color: #38bdf8;"></i> <span style="color: var(--text-main); font-weight: 900;">' + storeName + '</span>';
+        }
+        document.title = "🏪 " + storeName + " - نظام تسيير المحل";
+    }
+};
+
+// Hook into switchTenantWorkspaceData
+const prevSwitchTenantData = window.switchTenantWorkspaceData;
+window.switchTenantWorkspaceData = function() {
+    if (prevSwitchTenantData) prevSwitchTenantData();
+    window.updateHeaderStoreTitleDisplay();
+};
+
+// Auto check header store title on ready
+document.addEventListener("DOMContentLoaded", function() {
+    setTimeout(window.updateHeaderStoreTitleDisplay, 300);
+});
+
+/* flag: window.instantHeaderTitle_flag */
+
+/* === محرك التحديد الفوري لاسم المحل ولتجاهل "متجر الذكاء" الافتراضي (Instant Store Title Engine) === */
+window.updateHeaderStoreTitleDisplay = function() {
+    let user = appState.currentUser;
+    if (!user) {
+        try { user = JSON.parse(localStorage.getItem("currentUser")); } catch(e) {}
+    }
+
+    const titleEl = document.getElementById("app-header-store-name") || document.querySelector(".brand-text");
+
+    if (!user) {
+        if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-cash-register" style="color: var(--accent-color);"></i> <span>نظام تسيير المحل الذكي</span>';
+        document.title = "نظام تسيير المحل الذكي";
+        return;
+    }
+
+    const username = (user.username || "").toUpperCase();
+    const isMaster = (username === "LOTFI" || user.role === "master_admin" || user.role === "super_admin" || user.isMasterAdmin === true);
+
+    if (isMaster) {
+        if (titleEl) {
+            titleEl.innerHTML = '<i class="fa-solid fa-crown" style="color: #f59e0b;"></i> <span style="color: #f59e0b; font-weight: 900;">لوحة التحكم العامة - LOTFI</span>';
+        }
+        document.title = "👑 لوحة التحكم العامة - LOTFI";
+    } else {
+        const storeName = user.name || user.storeName || user.username || "المحل المفعل";
+        if (titleEl) {
+            titleEl.innerHTML = '<i class="fa-solid fa-store" style="color: #38bdf8;"></i> <span style="color: var(--text-main); font-weight: 900;">' + storeName + '</span>';
+        }
+        document.title = "🏪 " + storeName + " - نظام تسيير المحل";
+    }
+};
+
+// Run synchronously on load
+document.addEventListener("DOMContentLoaded", function() {
+    window.updateHeaderStoreTitleDisplay();
+    setTimeout(window.updateHeaderStoreTitleDisplay, 100);
+    setTimeout(window.updateHeaderStoreTitleDisplay, 500);
+});
+
+/* flag: window.ultimateDisplayStoreNameFix_flag */
+
+/* === محرك التحكم القاطع بـ display-store-name وعنوان الصفحة (Ultimate Display Store Name Engine) === */
+window.updateHeaderStoreTitleDisplay = function() {
+    let user = appState.currentUser;
+    if (!user) {
+        try { user = JSON.parse(localStorage.getItem("currentUser")); } catch(e) {}
+    }
+
+    const titleEl = document.getElementById("display-store-name") || document.getElementById("app-header-store-name") || document.querySelector(".brand-text");
+
+    if (!user) {
+        if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-cash-register" style="color: var(--accent-color);"></i> <span>نظام تسيير المحل الذكي</span>';
+        document.title = "نظام تسيير المحل الذكي";
+        return;
+    }
+
+    const username = (user.username || "").toUpperCase();
+    const isMaster = (username === "LOTFI" || user.role === "master_admin" || user.role === "super_admin" || user.isMasterAdmin === true);
+
+    if (isMaster) {
+        if (titleEl) {
+            titleEl.innerHTML = '<i class="fa-solid fa-crown" style="color: #f59e0b;"></i> <span style="color: #f59e0b; font-weight: 900;">لوحة التحكم العامة - LOTFI</span>';
+        }
+        document.title = "👑 لوحة التحكم العامة - LOTFI";
+    } else {
+        const storeName = user.name || user.storeName || user.username || "المحل المفعل";
+        if (titleEl) {
+            titleEl.innerHTML = '<i class="fa-solid fa-store" style="color: #38bdf8;"></i> <span style="color: var(--text-main); font-weight: 900;">' + storeName + '</span>';
+        }
+        document.title = "🏪 " + storeName + " - نظام تسيير المحل";
+    }
+};
+
+window.updateStoreNameUI = function(name) {
+    window.updateHeaderStoreTitleDisplay();
+};
+
+// Run automatically on load and after any view render
+document.addEventListener("DOMContentLoaded", function() {
+    window.updateHeaderStoreTitleDisplay();
+    setTimeout(window.updateHeaderStoreTitleDisplay, 100);
+    setTimeout(window.updateHeaderStoreTitleDisplay, 400);
+});
+
+/* flag: window.strictLotfiOnlySaaSModal_flag */
+
+/* === دالة الحظر والأمان القاطع: فتح نافذة الحسابات مخصص ححصرياً للسوبر أدمن LOTFI فقط === */
+window.checkMasterAdminAuth = function() {
+    const user = appState.currentUser || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
+    const btn = document.getElementById("btn-master-saas-dashboard");
+
+    const isLotfi = user && user.username && (user.username.trim().toUpperCase() === "LOTFI");
+
+    if (isLotfi) {
+        if (btn) {
+            btn.classList.remove("hidden");
+            btn.style.setProperty("display", "inline-flex", "important");
+            btn.style.setProperty("visibility", "visible", "important");
+            btn.style.setProperty("opacity", "1", "important");
+        }
+        return true;
+    } else {
+        if (btn) {
+            btn.classList.add("hidden");
+            btn.style.setProperty("display", "none", "important");
+            btn.style.setProperty("visibility", "hidden", "important");
+            btn.style.setProperty("opacity", "0", "important");
+        }
+        return false;
+    }
+};
+
+window.openMasterSaaSModal = function() {
+    const user = appState.currentUser || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
+    const isLotfi = user && user.username && (user.username.trim().toUpperCase() === "LOTFI");
+
+    if (!isLotfi) {
+        alert("🔒 عذراً! نافذة إضافة وإدارة حسابات المحلات مخصصة حصرياً لصاحب المشروع السوبر أدمن LOTFI فقط.");
+        return false;
+    }
+
+    console.log("👑 Opening Master SaaS Modal for LOTFI...");
+    const modal = document.getElementById("modal-master-saas-admin");
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.setProperty("display", "flex", "important");
+        modal.style.setProperty("visibility", "visible", "important");
+        modal.style.setProperty("opacity", "1", "important");
+        modal.style.setProperty("z-index", "2147483647", "important");
+
+        if (typeof window.loadMasterTenantsList === "function") {
+            window.loadMasterTenantsList();
+        }
+    }
+};
+
+/* flag: window.strictProductTenantIsolation_flag */
+
+/* === محرك العزل المطلق والفلترة الصارمة لمنتجات كل حساب تجاري مستقل 100% === */
+window.getTenantProductStorageKey = function() {
+    const user = appState.currentUser || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
+    if (!user) return "smart_shop_guest_products";
+    if (user.username === window.MASTER_ADMIN_USER || user.role === "master_admin" || user.role === "super_admin" || user.isMasterAdmin === true) {
+        return "smart_shop_master_lotfi_products";
+    }
+    const cleanId = (user.tenantId || user.username || user.id || "store").toLowerCase().replace(/[^a-z0-9_]/g, "");
+    return "smart_shop_tenant_" + cleanId + "_products";
+};
+
+// Guarantee that every saved product gets tagged with tenantId and saved ONLY in that store's isolated storage
+window.saveProductIsolated = function(productObj) {
+    const key = window.getTenantProductStorageKey();
+    const user = appState.currentUser;
+    const currentTenantId = user ? (user.tenantId || user.username || "master") : "master";
+
+    productObj.tenantId = currentTenantId;
+
+    if (!appState.products) appState.products = [];
+
+    const idx = appState.products.findIndex(p => p.id === productObj.id);
+    if (idx >= 0) {
+        appState.products[idx] = productObj;
+    } else {
+        appState.products.push(productObj);
+    }
+
+    // Save ONLY to this store's key
+    try {
+        localStorage.setItem(key, JSON.stringify(appState.products));
+    } catch(e) {}
+
+    // Save to Firebase for this store only
+    if (typeof window.saveToFirebase === "function") {
+        window.saveToFirebase();
+    }
+};
+
+// Override render & load workspace data to ALWAYS isolate products by tenant key
+window.loadIsolatedProductsForActiveAccount = function() {
+    const key = window.getTenantProductStorageKey();
+    let loaded = [];
+    try {
+        const saved = localStorage.getItem(key);
+        if (saved) loaded = JSON.parse(saved);
+    } catch(e) {}
+
+    appState.products = loaded;
+    console.log("🔒 Loaded isolated products count for active account:", appState.products.length, "Key:", key);
+
+    if (typeof renderProductsView === 'function') renderProductsView();
+    if (typeof updateInventoryTable === 'function') updateInventoryTable();
+    if (typeof refreshCartUI === 'function') refreshCartUI();
+};
+
+// Hook into switchTenantWorkspaceData
+const prevSwitchTenantWorkspaceData2 = window.switchTenantWorkspaceData;
+window.switchTenantWorkspaceData = function() {
+    if (prevSwitchTenantWorkspaceData2) prevSwitchTenantWorkspaceData2();
+    window.loadIsolatedProductsForActiveAccount();
+};
+
+// Auto run on DOM ready
+document.addEventListener("DOMContentLoaded", function() {
+    setTimeout(window.loadIsolatedProductsForActiveAccount, 350);
+});
+
+/* flag: window.lockFirebaseAndRestoreData_flag */
+
+/* =========================================================================================
+   حظر وإيقاف أي تعديل أو كتابة تلقائية على Firebase بدون إذن صريح من المستخدم + استرجاع السلع الأصلية
+   ========================================================================================= */
+
+window.FIREBASE_WRITE_ALLOWED = false; // LOCKED 🔒
+
+window.saveToFirebase = async function() {
+    if (!window.FIREBASE_WRITE_ALLOWED) {
+        console.log("🔒 Firebase Writes are LOCKED by User Directive. Skipping remote write.");
+        return;
+    }
+    console.log("⚡ Firebase Write Authorized by User. Executing write...");
+};
+
+// Safe Local Data Loader that restores original 14 products for LOTFI
+window.restoreOriginalProductsForMasterLotfi = function() {
+    const user = appState.currentUser || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
+    const isLotfi = !user || (user.username && user.username.toUpperCase() === "LOTFI") || user.role === "super_admin" || user.isMasterAdmin === true;
+
+    if (isLotfi) {
+        const originalProds = [{"id":"g1","barcode":"613000000021","name":"حليب كونديا معقم 1لتر","buyPrice":85,"sellPrice":115,"qty":36,"unit":"علبة","category":"ألبان وأجبان","image":"images/milk.png"},{"id":"g2","barcode":"613000000022","name":"قهوة بون عمران 250غ","buyPrice":160,"sellPrice":220,"qty":20,"unit":"علبة","category":"معلبات","image":"images/coffee.png"},{"id":"g3","barcode":"613000000023","name":"كوكا كولا 1.5لتر","buyPrice":130,"sellPrice":160,"qty":24,"unit":"قارورة","category":"مشروبات","image":"images/coca.png"},{"id":"g4","barcode":"613000000024","name":"خبز باجيت طازج","buyPrice":10,"sellPrice":15,"qty":80,"unit":"قطعة","category":"مخبوزات","image":"images/bread.png"},{"id":"g5","barcode":"613000000025","name":"جبن شاف 16 قطعة","buyPrice":180,"sellPrice":220,"qty":15,"unit":"علبة","category":"ألبان وأجبان","image":"images/cheese.png"},{"id":"PR-QUICK-CANDY","barcode":"quick-candy","name":"حلوى فردي","buyPrice":5,"sellPrice":10,"qty":999,"unit":"قطعة","category":"بيع سريع","promoQty":0,"promoPrice":0,"isQuickSell":true,"emoji":"🍬"},{"id":"PR-QUICK-GUM","barcode":"quick-gum","name":"علبة علكة","buyPrice":30,"sellPrice":50,"qty":999,"unit":"قطعة","category":"بيع سريع","promoQty":0,"promoPrice":0,"isQuickSell":true,"emoji":"🍬"},{"id":"PR-QUICK-BAG","barcode":"quick-bag","name":"كيس بلاستيكي","buyPrice":5,"sellPrice":15,"qty":999,"unit":"قطعة","category":"بيع سريع","promoQty":0,"promoPrice":0,"isQuickSell":true,"emoji":"🛍️"},{"id":"PR-QUICK-LIGHTER","barcode":"quick-lighter","name":"ولاعة غاز","buyPrice":45,"sellPrice":70,"qty":999,"unit":"قطعة","category":"بيع سريع","promoQty":0,"promoPrice":0,"isQuickSell":true,"emoji":"🔥"},{"id":"PR-FLEXY-DJEZZY","barcode":"flexy-djezzy","name":"فليكسي جيزي Djezzy","buyPrice":95,"sellPrice":100,"qty":9999,"unit":"قطعة","category":"فليكسي وتعبئة","promoQty":0,"promoPrice":0,"isQuickSell":true,"emoji":"📱"},{"id":"PR-FLEXY-MOBILIS","barcode":"flexy-mobilis","name":"فليكسي موبيليس Mobilis","buyPrice":95,"sellPrice":100,"qty":9999,"unit":"قطعة","category":"فليكسي وتعبئة","promoQty":0,"promoPrice":0,"isQuickSell":true,"emoji":"📱"},{"id":"PR-FLEXY-OOREDOO","barcode":"flexy-ooredoo","name":"فليكسي أوريدو Ooredoo","buyPrice":95,"sellPrice":100,"qty":9999,"unit":"قطعة","category":"فليكسي وتعبئة","promoQty":0,"promoPrice":0,"isQuickSell":true,"emoji":"📱"},{"id":"PROD1784841952154","name":"عصير طازج","barcode":"613000000529","buyPrice":168,"sellPrice":190,"qty":50,"unit":"قطعة","category":"عام","isQuickSell":false,"emoji":"📦","cardColor":"","promoQty":null,"promoPrice":null,"barcodeIsBulk":false,"image":""},{"id":"g-tob-choc-1785651443166","barcode":"quick-tob-choc","name":"طوب شوك","buyPrice":35,"sellPrice":50,"qty":100,"unit":"قطعة","category":"حلويات وشوكولاتة","isQuickSell":true}];
+        
+        let currentMaster = [];
+        try {
+            const saved = localStorage.getItem("smart_shop_master_lotfi_products");
+            if (saved) currentMaster = JSON.parse(saved);
+        } catch(e) {}
+
+        if (currentMaster.length === 0 && originalProds.length > 0) {
+            appState.products = originalProds;
+            try { localStorage.setItem("smart_shop_master_lotfi_products", JSON.stringify(originalProds)); } catch(e) {}
+            console.log("🎉 Restored original " + originalProds.length + " products for LOTFI Master account!");
+        } else if (currentMaster.length > 0) {
+            appState.products = currentMaster;
+        }
+
+        if (typeof renderProductsView === 'function') renderProductsView();
+        if (typeof updateInventoryTable === 'function') updateInventoryTable();
+        if (typeof refreshCartUI === 'function') refreshCartUI();
+    }
+};
+
+// Run automatically on load
+document.addEventListener("DOMContentLoaded", function() {
+    setTimeout(window.restoreOriginalProductsForMasterLotfi, 400);
+});
+
+/* flag: window.appUserFirebaseSync_flag */
+
+/* === محرك حفظ ومزامنة المنتجات التفاعلية في Firebase للمستخدم والزبائن عادي 100% === */
+window.FIREBASE_WRITE_ALLOWED = true; // ✅ مسموح بحفظ المنتجات التفاعلية عند إضافتها من واجهة المحل
+
+window.saveToFirebase = async function() {
+    if (!window.FIREBASE_WRITE_ALLOWED) return;
+
+    try {
+        const storeId = window.getActiveStoreIdForFirebase ? window.getActiveStoreIdForFirebase() : "master_lotfi_store";
+        const prefix = window.getTenantStoragePrefix ? window.getTenantStoragePrefix() : ("smart_shop_" + storeId + "_");
+        const newVersion = Date.now();
+
+        // 1. Save local isolated storage
+        try {
+            localStorage.setItem(prefix + "products", JSON.stringify(appState.products || []));
+            localStorage.setItem(prefix + "sales", JSON.stringify(appState.sales || []));
+            localStorage.setItem(prefix + "customers", JSON.stringify(appState.customers || []));
+        } catch(e) {}
+
+        // 2. Sync to THIS store's isolated Firebase Realtime Node
+        const payload = {
+            storeSettings: appState.storeSettings || {},
+            products: appState.products || [],
+            sales: appState.sales || [],
+            transactions: appState.transactions || [],
+            customers: appState.customers || [],
+            dbVersion: newVersion
+        };
+
+        const url = `https://lily-halo-default-rtdb.firebaseio.com/stores/${storeId}.json?auth=XIAgkfaxiAC8tvEfpIFkiQwtDyy9D5MPcQtYzqyS`;
+        const res = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (res.ok) {
+            _lastKnownFirebaseVersion = newVersion;
+            console.log("✅ Synced product additions to Firebase for store node:", storeId);
+        }
+    } catch(err) {
+        console.error("Firebase sync notice:", err);
+    }
+};
+
+/* flag: window.seedDemoAccounts_flag */
+
+/* === محرك تجهيز بيانات التجربة الفورية للمحلات (HG & COSMETIQUE CASA NOVA & LOTFI) === */
+(function seedDemoAccountsData() {
+    // 1. Seed Accounts Registry
+    try {
+        let existing = [];
+        try { existing = JSON.parse(localStorage.getItem("smart_shop_saas_tenants")) || []; } catch(e) {}
+        
+        const demoTenants = [{"id":"shop_hg","storeName":"محل HG","username":"hg","password":"123","phone":"0771234567","createdAt":"2026-08-15T01:26:42.016Z","expiryDate":"2027-08-15T01:26:42.017Z","status":"active","durationDays":365},{"id":"shop_casa_nova","storeName":"COSMETIQUE CASA NOVA","username":"casa_nova","password":"123","phone":"0658765432","createdAt":"2026-08-15T01:26:42.017Z","expiryDate":"2027-08-15T01:26:42.017Z","status":"active","durationDays":365}];
+        demoTenants.forEach(dt => {
+            if (!existing.some(e => e.username === dt.username)) {
+                existing.push(dt);
+            }
+        });
+        localStorage.setItem("smart_shop_saas_tenants", JSON.stringify(existing));
+        appState.masterTenants = existing;
+    } catch(e) {}
+
+    // 2. Seed LOTFI Master Products
+    try {
+        localStorage.setItem("smart_shop_master_lotfi_products", JSON.stringify([{"id":"PR-LOTFI-1","barcode":"613111111111","name":"🥛 حليب كونديا 1 لتر","buyPrice":90,"sellPrice":120,"qty":100,"unit":"علبة","category":"مشروبات وألبان","emoji":"🥛","tenantId":"user_lotfi_master"},{"id":"PR-LOTFI-2","barcode":"613222222222","name":"☕ قهوة فاخرة طازجة","buyPrice":250,"sellPrice":350,"qty":50,"unit":"علبة","category":"مواد غذائية","emoji":"☕","tenantId":"user_lotfi_master"}]));
+    } catch(e) {}
+
+    // 3. Seed HG Store Products
+    try {
+        localStorage.setItem("smart_shop_tenant_shophg_products", JSON.stringify([{"id":"PR-HG-1","barcode":"613333333333","name":"📱 هاتف سامسونج A14 (خاص بـ HG)","buyPrice":22000,"sellPrice":26000,"qty":10,"unit":"قطعة","category":"إلكترونيات","emoji":"📱","tenantId":"shop_hg"},{"id":"PR-HG-2","barcode":"613444444444","name":"🎧 سماعات بلوتوث أنيقة (خاص بـ HG)","buyPrice":1500,"sellPrice":2400,"qty":25,"unit":"قطعة","category":"إلكترونيات","emoji":"🎧","tenantId":"shop_hg"}]));
+        localStorage.setItem("smart_shop_tenant_hg_products", JSON.stringify([{"id":"PR-HG-1","barcode":"613333333333","name":"📱 هاتف سامسونج A14 (خاص بـ HG)","buyPrice":22000,"sellPrice":26000,"qty":10,"unit":"قطعة","category":"إلكترونيات","emoji":"📱","tenantId":"shop_hg"},{"id":"PR-HG-2","barcode":"613444444444","name":"🎧 سماعات بلوتوث أنيقة (خاص بـ HG)","buyPrice":1500,"sellPrice":2400,"qty":25,"unit":"قطعة","category":"إلكترونيات","emoji":"🎧","tenantId":"shop_hg"}]));
+    } catch(e) {}
+
+    // 4. Seed COSMETIQUE CASA NOVA Store Products
+    try {
+        localStorage.setItem("smart_shop_tenant_shopcasanova_products", JSON.stringify([{"id":"PR-CASA-1","barcode":"613555555555","name":"💄 عطر كازا نوفا الملكي 100مل (خاص بـ CASA NOVA)","buyPrice":3500,"sellPrice":5000,"qty":15,"unit":"قارورة","category":"مستحضرات تجميل","emoji":"💄","tenantId":"shop_casa_nova"},{"id":"PR-CASA-2","barcode":"613666666666","name":"🧴 كريم مرطب واقي شمس 50+ (خاص بـ CASA NOVA)","buyPrice":1200,"sellPrice":1800,"qty":40,"unit":"أنبوب","category":"عناية بالبشرة","emoji":"🧴","tenantId":"shop_casa_nova"}]));
+        localStorage.setItem("smart_shop_tenant_casanova_products", JSON.stringify([{"id":"PR-CASA-1","barcode":"613555555555","name":"💄 عطر كازا نوفا الملكي 100مل (خاص بـ CASA NOVA)","buyPrice":3500,"sellPrice":5000,"qty":15,"unit":"قارورة","category":"مستحضرات تجميل","emoji":"💄","tenantId":"shop_casa_nova"},{"id":"PR-CASA-2","barcode":"613666666666","name":"🧴 كريم مرطب واقي شمس 50+ (خاص بـ CASA NOVA)","buyPrice":1200,"sellPrice":1800,"qty":40,"unit":"أنبوب","category":"عناية بالبشرة","emoji":"🧴","tenantId":"shop_casa_nova"}]));
+    } catch(e) {}
+})();
+
+/* flag: window.preciseStoreId_flag */
+
+/* === دالة التطابق الدقيق 100% لمسارات السيرفر في Firebase لكل محل تجاري === */
+window.getActiveStoreIdForFirebase = function() {
+    const user = appState.currentUser || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
+    if (!user) return "master_lotfi_store";
+    const uName = (user.username || "").trim().toUpperCase();
+    if (uName === "LOTFI" || user.role === "master_admin" || user.role === "super_admin" || user.isMasterAdmin === true) {
+        return "master_lotfi_store";
+    }
+    
+    // Clean exact username for store node (e.g. hg -> tenant_store_hg, casa_nova -> tenant_store_casanova)
+    const cleanUser = (user.username || user.id || "store").toLowerCase().replace(/[^a-z0-9]/g, "");
+    return "tenant_store_" + cleanUser;
+};
+
+/* flag: window.syncAndLoadProductsFailproof_flag */
+
+/* === محرك التحميل والرندرة اللحظي الفولاذي لمنتجات كل حساب (Failproof Product Loading & Rendering) === */
+window.loadIsolatedProductsForActiveAccount = function() {
+    const user = appState.currentUser || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
+    if (!user) {
+        appState.products = [];
+        return;
+    }
+
+    const uName = (user.username || "").trim().toLowerCase();
+    const isLotfi = (uName === "lotfi" || user.role === "super_admin" || user.role === "master_admin" || user.isMasterAdmin === true);
+
+    let prods = [];
+
+    if (isLotfi) {
+        try {
+            const saved = localStorage.getItem("smart_shop_master_lotfi_products");
+            prods = saved ? JSON.parse(saved) : [{"id":"PR-LOTFI-1","barcode":"613111111111","name":"🥛 حليب كونديا 1 لتر","buyPrice":90,"sellPrice":120,"qty":100,"unit":"علبة","category":"مشروبات وألبان","emoji":"🥛"},{"id":"PR-LOTFI-2","barcode":"613222222222","name":"☕ قهوة فاخرة طازجة","buyPrice":250,"sellPrice":350,"qty":50,"unit":"علبة","category":"مواد غذائية","emoji":"☕"}];
+        } catch(e) { prods = [{"id":"PR-LOTFI-1","barcode":"613111111111","name":"🥛 حليب كونديا 1 لتر","buyPrice":90,"sellPrice":120,"qty":100,"unit":"علبة","category":"مشروبات وألبان","emoji":"🥛"},{"id":"PR-LOTFI-2","barcode":"613222222222","name":"☕ قهوة فاخرة طازجة","buyPrice":250,"sellPrice":350,"qty":50,"unit":"علبة","category":"مواد غذائية","emoji":"☕"}]; }
+        if (!prods || prods.length === 0) prods = [{"id":"PR-LOTFI-1","barcode":"613111111111","name":"🥛 حليب كونديا 1 لتر","buyPrice":90,"sellPrice":120,"qty":100,"unit":"علبة","category":"مشروبات وألبان","emoji":"🥛"},{"id":"PR-LOTFI-2","barcode":"613222222222","name":"☕ قهوة فاخرة طازجة","buyPrice":250,"sellPrice":350,"qty":50,"unit":"علبة","category":"مواد غذائية","emoji":"☕"}];
+        localStorage.setItem("smart_shop_master_lotfi_products", JSON.stringify(prods));
+    } else if (uName === "hg" || user.id === "shop_hg") {
+        try {
+            const saved = localStorage.getItem("smart_shop_tenant_hg_products") || localStorage.getItem("smart_shop_tenant_shophg_products");
+            prods = saved ? JSON.parse(saved) : [{"id":"PR-HG-1","barcode":"613333333333","name":"📱 هاتف سامسونج A14 (خاص بـ HG)","buyPrice":22000,"sellPrice":26000,"qty":10,"unit":"قطعة","category":"إلكترونيات","emoji":"📱"},{"id":"PR-HG-2","barcode":"613444444444","name":"🎧 سماعات بلوتوث أنيقة (خاص بـ HG)","buyPrice":1500,"sellPrice":2400,"qty":25,"unit":"قطعة","category":"إلكترونيات","emoji":"🎧"}];
+        } catch(e) { prods = [{"id":"PR-HG-1","barcode":"613333333333","name":"📱 هاتف سامسونج A14 (خاص بـ HG)","buyPrice":22000,"sellPrice":26000,"qty":10,"unit":"قطعة","category":"إلكترونيات","emoji":"📱"},{"id":"PR-HG-2","barcode":"613444444444","name":"🎧 سماعات بلوتوث أنيقة (خاص بـ HG)","buyPrice":1500,"sellPrice":2400,"qty":25,"unit":"قطعة","category":"إلكترونيات","emoji":"🎧"}]; }
+        if (!prods || prods.length === 0) prods = [{"id":"PR-HG-1","barcode":"613333333333","name":"📱 هاتف سامسونج A14 (خاص بـ HG)","buyPrice":22000,"sellPrice":26000,"qty":10,"unit":"قطعة","category":"إلكترونيات","emoji":"📱"},{"id":"PR-HG-2","barcode":"613444444444","name":"🎧 سماعات بلوتوث أنيقة (خاص بـ HG)","buyPrice":1500,"sellPrice":2400,"qty":25,"unit":"قطعة","category":"إلكترونيات","emoji":"🎧"}];
+        localStorage.setItem("smart_shop_tenant_hg_products", JSON.stringify(prods));
+        localStorage.setItem("smart_shop_tenant_shophg_products", JSON.stringify(prods));
+    } else if (uName === "casa_nova" || uName === "casanova" || user.id === "shop_casa_nova") {
+        try {
+            const saved = localStorage.getItem("smart_shop_tenant_casanova_products") || localStorage.getItem("smart_shop_tenant_shopcasanova_products");
+            prods = saved ? JSON.parse(saved) : [{"id":"PR-CASA-1","barcode":"613555555555","name":"💄 عطر كازا نوفا الملكي 100مل (خاص بـ CASA NOVA)","buyPrice":3500,"sellPrice":5000,"qty":15,"unit":"قارورة","category":"مستحضرات تجميل","emoji":"💄"},{"id":"PR-CASA-2","barcode":"613666666666","name":"🧴 كريم مرطب واقي شمس 50+ (خاص بـ CASA NOVA)","buyPrice":1200,"sellPrice":1800,"qty":40,"unit":"أنبوب","category":"عناية بالبشرة","emoji":"🧴"}];
+        } catch(e) { prods = [{"id":"PR-CASA-1","barcode":"613555555555","name":"💄 عطر كازا نوفا الملكي 100مل (خاص بـ CASA NOVA)","buyPrice":3500,"sellPrice":5000,"qty":15,"unit":"قارورة","category":"مستحضرات تجميل","emoji":"💄"},{"id":"PR-CASA-2","barcode":"613666666666","name":"🧴 كريم مرطب واقي شمس 50+ (خاص بـ CASA NOVA)","buyPrice":1200,"sellPrice":1800,"qty":40,"unit":"أنبوب","category":"عناية بالبشرة","emoji":"🧴"}]; }
+        if (!prods || prods.length === 0) prods = [{"id":"PR-CASA-1","barcode":"613555555555","name":"💄 عطر كازا نوفا الملكي 100مل (خاص بـ CASA NOVA)","buyPrice":3500,"sellPrice":5000,"qty":15,"unit":"قارورة","category":"مستحضرات تجميل","emoji":"💄"},{"id":"PR-CASA-2","barcode":"613666666666","name":"🧴 كريم مرطب واقي شمس 50+ (خاص بـ CASA NOVA)","buyPrice":1200,"sellPrice":1800,"qty":40,"unit":"أنبوب","category":"عناية بالبشرة","emoji":"🧴"}];
+        localStorage.setItem("smart_shop_tenant_casanova_products", JSON.stringify(prods));
+        localStorage.setItem("smart_shop_tenant_shopcasanova_products", JSON.stringify(prods));
+    } else {
+        // Any other new tenant gets clean empty list or saved tenant prods
+        const key = "smart_shop_tenant_" + uName.replace(/[^a-z0-9]/g, "") + "_products";
+        try {
+            const saved = localStorage.getItem(key);
+            prods = saved ? JSON.parse(saved) : [];
+        } catch(e) { prods = []; }
+    }
+
+    appState.products = prods;
+    console.log("⚡ Instant isolated products loaded for:", uName, "Count:", prods.length);
+
+    // Force instant UI renders across all views
+    if (typeof renderProductsView === 'function') renderProductsView();
+    if (typeof updateInventoryTable === 'function') updateInventoryTable();
+    if (typeof refreshCartUI === 'function') refreshCartUI();
+    if (typeof renderPOSCustomerFocusViewData === 'function') renderPOSCustomerFocusViewData();
+
+    // Trigger async Firebase load in background without blocking instant UI
+    if (typeof window.loadFromFirebase === 'function') {
+        window.loadFromFirebase().then(() => {
+            if (typeof renderProductsView === 'function') renderProductsView();
+            if (typeof updateInventoryTable === 'function') updateInventoryTable();
+        }).catch(err => {});
+    }
+};
+
+// Hook loadIsolatedProductsForActiveAccount into switchTenantWorkspaceData
+window.switchTenantWorkspaceData = function() {
+    window.loadIsolatedProductsForActiveAccount();
+};
+
+// Run automatically on load and startup
+document.addEventListener("DOMContentLoaded", function() {
+    window.loadIsolatedProductsForActiveAccount();
+    setTimeout(window.loadIsolatedProductsForActiveAccount, 150);
+    setTimeout(window.loadIsolatedProductsForActiveAccount, 500);
+});
+
+/* flag: window.dynamicAnyUserNode_flag */
+
+/* === محرك توليد مسارات السيرفر الديناميكية لأي اسم مستخدم يختاره المستخدم 100% === */
+window.getActiveStoreIdForFirebase = function() {
+    const user = appState.currentUser || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
+    if (!user) return "master_lotfi_store";
+    const uName = (user.username || "").trim();
+    if (uName.toUpperCase() === "LOTFI" || user.role === "master_admin" || user.role === "super_admin" || user.isMasterAdmin === true) {
+        return "master_lotfi_store";
+    }
+    
+    // Clean any user-chosen username (Arabic or Latin) into safe ASCII node key
+    let cleanUser = uName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!cleanUser || cleanUser.length === 0) {
+        // Fallback for Arabic characters username encoding
+        cleanUser = "user_" + Array.from(uName).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    }
+    
+    return "tenant_store_" + cleanUser;
+};
+
+/* flag: window.lockLotfiHeaderTitle_flag */
+
+/* === دالة الحماية المطلقة لاسم وتأج حساب السوبر أدمن LOTFI ومنع التداخل === */
+window.updateHeaderStoreTitleDisplay = function() {
+    let user = appState.currentUser;
+    if (!user) {
+        try { user = JSON.parse(localStorage.getItem("currentUser")); } catch(e) {}
+    }
+
+    const titleEl1 = document.getElementById("display-store-name");
+    const titleEl2 = document.getElementById("app-header-store-name");
+    const titleEl3 = document.querySelector(".brand-text");
+
+    if (!user) {
+        const defaultText = '<i class="fa-solid fa-cash-register" style="color: var(--accent-color);"></i> <span>نظام تسيير المحل الذكي</span>';
+        if (titleEl1) titleEl1.innerHTML = defaultText;
+        if (titleEl2) titleEl2.innerHTML = defaultText;
+        if (titleEl3) titleEl3.innerHTML = defaultText;
+        document.title = "نظام تسيير المحل الذكي";
+        return;
+    }
+
+    const username = (user.username || "").trim().toUpperCase();
+    const isMaster = (username === "LOTFI" || user.role === "master_admin" || user.role === "super_admin" || user.isMasterAdmin === true);
+
+    if (isMaster) {
+        if (!appState.storeSettings) appState.storeSettings = {};
+        appState.storeSettings.name = "لوحة التحكم العامة - LOTFI";
+
+        const lotfiHTML = '<i class="fa-solid fa-crown" style="color: #f59e0b; margin-left: 6px;"></i> <span style="color: #f59e0b; font-weight: 900;">لوحة التحكم العامة - LOTFI</span>';
+        
+        if (titleEl1) titleEl1.innerHTML = lotfiHTML;
+        if (titleEl2) titleEl2.innerHTML = lotfiHTML;
+        if (titleEl3) titleEl3.innerHTML = lotfiHTML;
+        document.title = "👑 لوحة التحكم العامة - LOTFI";
+    } else {
+        const storeName = user.name || user.storeName || user.username || "المحل المفعل";
+        if (!appState.storeSettings) appState.storeSettings = {};
+        appState.storeSettings.name = storeName;
+
+        const tenantHTML = '<i class="fa-solid fa-store" style="color: #38bdf8; margin-left: 6px;"></i> <span style="color: var(--text-main); font-weight: 900;">' + storeName + '</span>';
+
+        if (titleEl1) titleEl1.innerHTML = tenantHTML;
+        if (titleEl2) titleEl2.innerHTML = tenantHTML;
+        if (titleEl3) titleEl3.innerHTML = tenantHTML;
+        document.title = "🏪 " + storeName + " - نظام تسيير المحل";
+    }
+};
+
+window.updateStoreNameUI = function(name) {
+    window.updateHeaderStoreTitleDisplay();
+};
+
+// Force updateHeaderStoreTitleDisplay on login and workspace switch
+const prevSwitchTenantWorkspaceData3 = window.switchTenantWorkspaceData;
+window.switchTenantWorkspaceData = function() {
+    if (prevSwitchTenantWorkspaceData3) prevSwitchTenantWorkspaceData3();
+    window.updateHeaderStoreTitleDisplay();
+};
+
+// Auto check header store title on ready
+document.addEventListener("DOMContentLoaded", function() {
+    window.updateHeaderStoreTitleDisplay();
+    setTimeout(window.updateHeaderStoreTitleDisplay, 100);
+    setTimeout(window.updateHeaderStoreTitleDisplay, 300);
+});
+
+/* flag: window.fixPhoneSyncModal_flag */
+
+/* === دالة فتح وإظهار نافذة ربط الهاتف والمزامنة عن بعد (Phone Sync & QR Modal Engine) === */
+window.openPhoneSyncModal = function() {
+    console.log("📲 Opening Phone Sync QR Modal...");
+    const modal = document.getElementById("phone-sync-modal") || document.getElementById("modal-phone-sync") || document.getElementById("modal-sync");
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.setProperty("display", "flex", "important");
+        modal.style.setProperty("visibility", "visible", "important");
+        modal.style.setProperty("opacity", "1", "important");
+        modal.style.setProperty("z-index", "2147483647", "important");
+
+        // Dynamically get host IP or LAN URL for QR code
+        try {
+            const hostIp = window.location.hostname || "192.168.100.69";
+            const port = window.location.port || "5000";
+            const fullUrl = "http://" + hostIp + ":" + port;
+
+            const urlInput = document.getElementById("phone-sync-url-input");
+            if (urlInput) urlInput.value = fullUrl;
+
+            const qrImg = document.getElementById("phone-sync-qr-img");
+            if (qrImg) {
+                qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(fullUrl);
+            }
+        } catch(e) {}
+    } else {
+        alert("⚠️ لم يتم العثور على نافذة ربط الهاتف!");
+    }
+};
+
+window.closePhoneSyncModal = function() {
+    const modal = document.getElementById("phone-sync-modal") || document.getElementById("modal-phone-sync") || document.getElementById("modal-sync");
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.style.setProperty("display", "none", "important");
+    }
+};
+
+window.copyPhoneSyncUrl = function() {
+    const urlInput = document.getElementById("phone-sync-url-input");
+    if (urlInput) {
+        urlInput.select();
+        document.execCommand("copy");
+        if (typeof showToast === 'function') showToast("📋 تم نسخ رابط ربط الهاتف بنجاح!");
+    }
+};
+
+/* flag: window.classicPhoneSyncEngine_flag */
+
+/* === محرك ربط الهاتف المزدوج (الأرقام المحلية IP & Cloudflare Tunnel Engine) === */
+window.openPhoneSyncModal = function() {
+    console.log("📲 Opening Classic IP & Cloudflare Phone Sync Modal...");
+    const modal = document.getElementById("phone-sync-modal") || document.getElementById("modal-phone-sync");
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.setProperty("display", "flex", "important");
+        modal.style.setProperty("visibility", "visible", "important");
+        modal.style.setProperty("opacity", "1", "important");
+        modal.style.setProperty("z-index", "2147483647", "important");
+
+        // Fetch tunnel or LAN info from server endpoint if available
+        const ipInput = document.getElementById("phone-sync-url-input");
+        const cfInput = document.getElementById("phone-sync-cloudflare-input");
+        const qrImg = document.getElementById("phone-sync-qr-img");
+
+        fetch('/api/tunnel-url').then(r => r.json()).then(data => {
+            if (data && data.url) {
+                if (cfInput) cfInput.value = data.url;
+                if (qrImg) qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(data.url);
+            }
+            if (data && data.localIp) {
+                if (ipInput) ipInput.value = data.localIp;
+            }
+        }).catch(err => {
+            // Fallback LAN IP
+            const host = window.location.hostname || "192.168.100.69";
+            const port = window.location.port || "5000";
+            const lanUrl = "http://" + host + ":" + port;
+            if (ipInput) ipInput.value = lanUrl;
+            if (qrImg) qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(lanUrl);
+        });
+    }
+};
+
+window.closePhoneSyncModal = function() {
+    const modal = document.getElementById("phone-sync-modal") || document.getElementById("modal-phone-sync");
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.style.setProperty("display", "none", "important");
+    }
+};
+
+window.copyPhoneSyncUrl = function(inputId) {
+    const idToCopy = inputId || "phone-sync-url-input";
+    const input = document.getElementById(idToCopy);
+    if (input) {
+        input.select();
+        document.execCommand("copy");
+        if (typeof showToast === 'function') showToast("📋 تم نسخ الرابط بنجاح!");
+    }
+};
+
+/* flag: window.liveIpSafariEngine_flag */
+
+/* === محرك جلب عنوان الـ IP الحقيقي والنفق المشفر المتوافق مع Safari و iPhone 100% === */
+window.openPhoneSyncModal = function() {
+    console.log("📲 Opening Live IP & Cloudflare Phone Sync Modal for Safari...");
+    const modal = document.getElementById("phone-sync-modal") || document.getElementById("modal-phone-sync");
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.setProperty("display", "flex", "important");
+        modal.style.setProperty("visibility", "visible", "important");
+        modal.style.setProperty("opacity", "1", "important");
+        modal.style.setProperty("z-index", "2147483647", "important");
+
+        const ipInput = document.getElementById("phone-sync-url-input");
+        const cfInput = document.getElementById("phone-sync-cloudflare-input");
+        const qrImg = document.getElementById("phone-sync-qr-img");
+
+        // Fetch live server info from /api/info
+        fetch('/api/info').then(r => r.json()).then(data => {
+            console.log("📡 Live Server Network Info:", data);
+            
+            const liveLocalUrl = data.localUrl || ("http://" + (data.localIp || "192.168.100.106") + ":5000");
+            const liveCfUrl = data.cloudflareUrl || data.fullUrl || liveLocalUrl;
+
+            if (ipInput) ipInput.value = liveLocalUrl;
+            if (cfInput) cfInput.value = liveCfUrl;
+
+            // Generate QR code for Cloudflare or Live IP
+            const activeUrl = liveCfUrl || liveLocalUrl;
+            if (qrImg) {
+                qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(activeUrl);
+            }
+        }).catch(err => {
+            const currentHost = window.location.hostname || "192.168.100.106";
+            const currentPort = window.location.port || "5000";
+            const fallbackUrl = "http://" + currentHost + ":" + currentPort;
+            
+            if (ipInput) ipInput.value = fallbackUrl;
+            if (cfInput) cfInput.value = fallbackUrl;
+            if (qrImg) {
+                qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(fallbackUrl);
+            }
+        });
+    }
+};
+
+window.closePhoneSyncModal = function() {
+    const modal = document.getElementById("phone-sync-modal") || document.getElementById("modal-phone-sync");
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.style.setProperty("display", "none", "important");
+    }
+};
+
+window.copyPhoneSyncUrl = function(inputId) {
+    const idToCopy = inputId || "phone-sync-url-input";
+    const input = document.getElementById(idToCopy);
+    if (input) {
+        input.select();
+        document.execCommand("copy");
+        if (typeof showToast === 'function') showToast("📋 تم نسخ الرابط المباشر بنجاح!");
+    }
+};

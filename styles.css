@@ -2807,15 +2807,218 @@ body.simulated-fullscreen #app-container {
 
 
 /* =======================================================
-   إظهار زر تأكيد البيع حصرياً للهاتف فقط
+   تمديد وتوسيع واجهة البيع الرئيسية والسلة لأسفل الشاشة
    ======================================================= */
-@media (max-width: 1024px) {
-    #btn-mobile-confirm-sale {
-        display: flex !important;
+[data-theme="light"],
+body.light-mode {
+    --bg-primary: #f1f5f9 !important;
+    --bg-secondary: #ffffff !important;
+    --text-main: #0f172a !important;
+    --text-muted: #64748b !important;
+    --glass-bg: rgba(255, 255, 255, 0.95) !important;
+    --glass-border: rgba(0, 0, 0, 0.12) !important;
+}
+
+[data-theme="light"] body,
+body.light-mode {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+}
+
+[data-theme="light"] .glass-card,
+body.light-mode .glass-card {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+/* تمديد واجهة البيع الرئيسية لأسفل وتغطية المساحة الرمادية السفلية */
+.main-content {
+    padding-bottom: 5px !important;
+    margin-bottom: 0 !important;
+}
+
+#tab-pos {
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.pos-layout-split {
+    height: calc(100vh - 75px) !important;
+    max-height: calc(100vh - 75px) !important;
+    margin-bottom: 0 !important;
+}
+
+.pos-cart-side-new,
+.pos-quick-side-new {
+    height: 100% !important;
+    max-height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    margin-bottom: 0 !important;
+}
+
+.cart-items-wrapper-new,
+#pos-products-view,
+.quick-grid-container {
+    flex: 1 !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+}
+
+/* نمط التركيز (إخفاء الترويسة العلوية وتمديد الواجهة بالكامل) */
+.pos-focus-active header,
+.pos-focus-active .header-nav,
+.pos-focus-active .desktop-only-nav,
+.pos-focus-active .mobile-top-header,
+.pos-focus-active .top-bar-container {
+    display: none !important;
+}
+
+.pos-focus-active .main-content {
+    padding: 4px 8px !important;
+    margin: 0 !important;
+}
+
+.pos-focus-active .pos-layout-split {
+    height: calc(100vh - 15px) !important;
+    max-height: calc(100vh - 15px) !important;
+}
+
+
+/* =======================================================
+   تمديد شاشة البيع الرئيسية والسلة لأسفل الشاشة بالكامل 100%
+   ======================================================= */
+.main-content {
+    padding-bottom: 2px !important;
+    margin-bottom: 0 !important;
+}
+
+#tab-pos {
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.pos-layout-split {
+    height: calc(100vh - 52px) !important;
+    max-height: calc(100vh - 52px) !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+.pos-cart-side-new,
+.pos-quick-side-new {
+    height: 100% !important;
+    max-height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    margin-bottom: 0 !important;
+}
+
+.cart-items-wrapper-new,
+#pos-products-view,
+.quick-grid-container {
+    flex: 1 !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+}
+
+/* في نمط التركيز عند إخفاء الترويسة العلوية */
+.pos-focus-active .main-content {
+    padding: 2px 6px !important;
+    margin: 0 !important;
+}
+
+.pos-focus-active .pos-layout-split {
+    height: calc(100vh - 4px) !important;
+    max-height: calc(100vh - 4px) !important;
+}
+
+
+/* =======================================================
+   توسيع وجعل نافذة سلة المشتريات أكبر من نافذة البيع السريع
+   ======================================================= */
+.pos-layout-split {
+    display: grid !important;
+    grid-template-columns: 1fr 320px !important; /* تقليل عرض البيع السريع لـ 340px وتوسيع السلة لـ باقي الشاشة الكبيرة */
+    gap: 14px !important;
+}
+
+@media (min-width: 1400px) {
+    .pos-layout-split {
+        grid-template-columns: 1fr 320px !important; /* السلة تأخذ أكثر من 65% من عرض الشاشة */
     }
 }
-@media (min-width: 1025px) {
-    #btn-mobile-confirm-sale {
-        display: none !important;
+
+
+/* =======================================================
+   عكس التقسيم: جعل نافذة السلة عريضة جداً (1fr) والبيع السريع ضيقة (320px)
+   ======================================================= */
+.pos-layout-split {
+    display: grid !important;
+    grid-template-columns: 1fr 320px !important; /* السلة تأخذ الاتساع الأكبر 1fr والبيع السريع 320px */
+    gap: 14px !important;
+}
+
+@media (min-width: 1400px) {
+    .pos-layout-split {
+        grid-template-columns: 1fr 300px !important; /* زيادة اتساع السلة على الشاشات العريضة */
     }
+}
+
+
+/* إخفاء وحذف كلي لنظام ونوافذ الترخيص بطلب المستخدم */
+#license-guard-overlay,
+#license-manage-modal,
+#modal-license,
+#license-warning-banner,
+.license-overlay,
+.license-modal {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+
+/* =======================================================
+   إعادة تفعيل وإظهار أشرطة التمرير الأنيقة بالفأرة في النوافذ
+   ======================================================= */
+* {
+    scrollbar-width: thin !important;
+    scrollbar-color: var(--accent-color) transparent !important;
+}
+
+::-webkit-scrollbar {
+    width: 6px !important;
+    height: 6px !important;
+    display: block !important;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05) !important;
+    border-radius: 4px !important;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--accent-color) !important;
+    border-radius: 4px !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #4f46e5 !important;
+}
+
+.modal-body,
+.camera-scanner-wrapper > div,
+.cart-items-wrapper-new,
+#pos-products-view,
+.quick-grid-container,
+.tab-content,
+.main-content {
+    overflow-y: auto !important;
 }
