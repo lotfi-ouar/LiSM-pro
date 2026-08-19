@@ -1,3 +1,8 @@
+
+window.isMobileOrTouchDevice = function() {
+    return (window.innerWidth <= 768) || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+};
+
 /* ==========================================
 
    نظام تسيير المحل الذكي - ملف البرمجة الرئيسي (JS)
@@ -291,7 +296,7 @@ function switchTab(tabId) {
 
             const barcodeInput = document.getElementById("pos-barcode-input");
 
-            if (barcodeInput) barcodeInput.focus();
+            if (barcodeInput && !window.isMobileOrTouchDevice()) barcodeInput.focus();
 
         }, 200);
 
@@ -938,7 +943,7 @@ function setupEventListeners() {
 
                     posBarcodeInput.value = ""; // تفريغ الحقل لاستقبال المسح القادم
 
-                    posBarcodeInput.focus();
+                    if (!window.isMobileOrTouchDevice()) { posBarcodeInput.focus(); }
 
                 }
 
@@ -966,7 +971,7 @@ function setupEventListeners() {
 
                 if (!isInputOrButton) {
 
-                    posBarcodeInput.focus();
+                    if (!window.isMobileOrTouchDevice()) { posBarcodeInput.focus(); }
 
                 }
 
@@ -13484,7 +13489,7 @@ document.addEventListener("keydown", function(e) {
     } else if (e.key === "F3") {
         e.preventDefault();
         const searchInput = document.getElementById("pos-barcode-input") || document.getElementById("focus-search-input");
-        if (searchInput) searchInput.focus();
+        if (searchInput && !window.isMobileOrTouchDevice()) searchInput.focus();
     } else if (e.key === "F4") {
         e.preventDefault();
         const btnClear = document.getElementById("btn-clear-cart");
@@ -15312,3 +15317,16 @@ window.copyPhoneSyncUrl = function(inputId) {
         if (typeof showToast === 'function') showToast("📋 تم نسخ الرابط المباشر بنجاح!");
     }
 };
+
+
+// Dismiss mobile virtual keyboard on tap outside input fields
+document.addEventListener('touchstart', function(e) {
+    if (window.isMobileOrTouchDevice()) {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+            if (!active.contains(e.target) && e.target !== active) {
+                active.blur();
+            }
+        }
+    }
+}, { passive: true });
