@@ -296,7 +296,7 @@ function switchTab(tabId) {
 
             const barcodeInput = document.getElementById("pos-barcode-input");
 
-            if (barcodeInput && !window.isMobileOrTouchDevice()) barcodeInput.focus();
+            if (barcodeInput && !window.isMobileOrTouchDevice()) if (!window.isMobileOrTouchDevice() && typeof barcodeInput !== 'undefined' && barcodeInput && barcodeInput.focus) { barcodeInput.focus(); };
 
         }, 200);
 
@@ -943,7 +943,7 @@ function setupEventListeners() {
 
                     posBarcodeInput.value = ""; // تفريغ الحقل لاستقبال المسح القادم
 
-                    if (!window.isMobileOrTouchDevice()) { posBarcodeInput.focus(); }
+                    if (!window.isMobileOrTouchDevice()) { if (!window.isMobileOrTouchDevice() && typeof posBarcodeInput !== 'undefined' && posBarcodeInput && posBarcodeInput.focus) { posBarcodeInput.focus(); }; }
 
                 }
 
@@ -971,7 +971,7 @@ function setupEventListeners() {
 
                 if (!isInputOrButton) {
 
-                    if (!window.isMobileOrTouchDevice()) { posBarcodeInput.focus(); }
+                    if (!window.isMobileOrTouchDevice()) { if (!window.isMobileOrTouchDevice() && typeof posBarcodeInput !== 'undefined' && posBarcodeInput && posBarcodeInput.focus) { posBarcodeInput.focus(); }; }
 
                 }
 
@@ -1217,7 +1217,7 @@ function setupEventListeners() {
 
                 if (prodNameInput) {
 
-                    prodNameInput.focus();
+                    if (!window.isMobileOrTouchDevice() && typeof prodNameInput !== 'undefined' && prodNameInput && prodNameInput.focus) { prodNameInput.focus(); };
 
                     prodNameInput.select(); // تظليل الاسم للكتابة الفورية
 
@@ -2351,7 +2351,7 @@ function selectProductFromSearchDropdown(productId) {
     const searchInput = document.getElementById("pos-search-input");
     if (searchInput) {
         searchInput.value = "";
-        searchInput.focus();
+        if (!window.isMobileOrTouchDevice() && typeof searchInput !== 'undefined' && searchInput && searchInput.focus) { searchInput.focus(); };
     }
 
     const dropdown = document.getElementById("pos-search-dropdown-results");
@@ -5499,7 +5499,7 @@ window.openQuickQtyModalForProduct = function(product) {
             qtyInput.value = 1;
             // التركيز التلقائي وتحديد النص لسرعة الكتابة
             setTimeout(() => {
-                qtyInput.focus();
+                if (!window.isMobileOrTouchDevice() && typeof qtyInput !== 'undefined' && qtyInput && qtyInput.focus) { qtyInput.focus(); };
                 qtyInput.select();
             }, 80);
         }
@@ -10948,7 +10948,7 @@ window.triggerAddCustomAmount = function() {
     if (modal && input) {
         input.value = "";
         modal.classList.remove("hidden");
-        setTimeout(() => input.focus(), 200);
+        setTimeout(() => { if (!window.isMobileOrTouchDevice() && typeof input !== 'undefined' && input && input.focus) { input.focus(); } }, 200);
     }
 };
 
@@ -11069,7 +11069,7 @@ window.triggerMultiplyLastItem = function() {
         curQtyEl.innerText = `الكمية الحالية: ${lastItem.qty} ${product.unit || 'قطعة'}`;
         input.value = "";
         modal.classList.remove("hidden");
-        setTimeout(() => input.focus(), 200);
+        setTimeout(() => { if (!window.isMobileOrTouchDevice() && typeof input !== 'undefined' && input && input.focus) { input.focus(); } }, 200);
     }
 };
 
@@ -11122,7 +11122,7 @@ window.openCheckoutDebtModal = function(debtAmount, received, total, checkoutIte
     const searchInput = document.getElementById("checkout-debt-search");
     if (searchInput) {
         searchInput.value = "";
-        setTimeout(() => searchInput.focus(), 150);
+        setTimeout(() => { if (!window.isMobileOrTouchDevice() && typeof searchInput !== 'undefined' && searchInput && searchInput.focus) { searchInput.focus(); } }, 150);
     }
     
     renderCheckoutDebtCustomers("");
@@ -12027,7 +12027,7 @@ window.openQuickAddProductModal = function() {
     modal.classList.remove("hidden");
     setTimeout(() => {
         const nameInput = document.getElementById("quick-p-name");
-        if (nameInput) nameInput.focus();
+        if (nameInput) if (!window.isMobileOrTouchDevice() && typeof nameInput !== 'undefined' && nameInput && nameInput.focus) { nameInput.focus(); };
     }, 150);
 };
 
@@ -12348,7 +12348,7 @@ window.initBarcodeDiagTool = function() {
     diagScanData = { rawChars: [], keyEvents: [], startTime: null, endTime: null };
     
     // تركيز الفوكس تلقائياً عند فتح التبويب
-    setTimeout(() => input.focus(), 150);
+    setTimeout(() => { if (!window.isMobileOrTouchDevice() && typeof input !== 'undefined' && input && input.focus) { input.focus(); } }, 150);
 
     input.onkeydown = function(e) {
         if (!diagScanData.startTime) {
@@ -12436,7 +12436,7 @@ window.resetBarcodeDiagTool = function() {
     const input = document.getElementById("diag-scanner-input");
     if (input) {
         input.value = "";
-        input.focus();
+        if (!window.isMobileOrTouchDevice() && typeof input !== 'undefined' && input && input.focus) { input.focus(); };
     }
     diagScanData = { rawChars: [], keyEvents: [], startTime: null, endTime: null };
     
@@ -12895,7 +12895,7 @@ window.openPOSQuickAddModal = function(barcode) {
     if (qtyInput) qtyInput.value = "1";
 
     modal.classList.remove("hidden");
-    setTimeout(() => { if (nameInput) nameInput.focus(); }, 150);
+    setTimeout(() => { if (nameInput) if (!window.isMobileOrTouchDevice() && typeof nameInput !== 'undefined' && nameInput && nameInput.focus) { nameInput.focus(); }; }, 150);
 };
 
 window.closePOSQuickAddModal = function() {
@@ -12969,7 +12969,7 @@ document.addEventListener("keydown", function(e) {
                     if (qtyInput) {
                         qtyInput.value = lastItem.qty;
                         setTimeout(() => {
-                            qtyInput.focus();
+                            if (!window.isMobileOrTouchDevice() && typeof qtyInput !== 'undefined' && qtyInput && qtyInput.focus) { qtyInput.focus(); };
                             qtyInput.select();
                         }, 120);
                     }
@@ -13117,7 +13117,7 @@ window.openMobileCameraScanner = function(targetInputId) {
     const manualInput = document.getElementById("mobile-manual-barcode-input");
     if (manualInput) {
         manualInput.value = "";
-        setTimeout(() => manualInput.focus(), 300);
+        setTimeout(() => { if (!window.isMobileOrTouchDevice() && typeof manualInput !== 'undefined' && manualInput && manualInput.focus) { manualInput.focus(); } }, 300);
     }
 
     // تهيئة القارئ إذا لم يكن مهيأً
@@ -13489,7 +13489,7 @@ document.addEventListener("keydown", function(e) {
     } else if (e.key === "F3") {
         e.preventDefault();
         const searchInput = document.getElementById("pos-barcode-input") || document.getElementById("focus-search-input");
-        if (searchInput && !window.isMobileOrTouchDevice()) searchInput.focus();
+        if (searchInput && !window.isMobileOrTouchDevice()) if (!window.isMobileOrTouchDevice() && typeof searchInput !== 'undefined' && searchInput && searchInput.focus) { searchInput.focus(); };
     } else if (e.key === "F4") {
         e.preventDefault();
         const btnClear = document.getElementById("btn-clear-cart");
@@ -13762,7 +13762,7 @@ window.showAppLoginModal = function() {
         
         const userInput = document.getElementById("login-input-username");
         const passInput = document.getElementById("login-input-password");
-        if (userInput) { userInput.value = ""; setTimeout(() => userInput.focus(), 150); }
+        if (userInput) { userInput.value = ""; setTimeout(() => { if (!window.isMobileOrTouchDevice() && typeof userInput !== 'undefined' && userInput && userInput.focus) { userInput.focus(); } }, 150); }
         if (passInput) passInput.value = "";
     }
 };
