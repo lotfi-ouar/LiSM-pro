@@ -7700,9 +7700,9 @@ openBarcodeModal = function(productId) {
 
 // ====== الإعدادات العامة للمتجر وتطبيق الطباعة الديناميكية وسيناريوهات المخططات ======
 
-let salesTrendChartInstance = null;
+window.salesTrendChartInstance = window.salesTrendChartInstance || null;
 
-let topItemsChartInstance = null;
+window.topItemsChartInstance = window.topItemsChartInstance || null;
 
 function handleStoreLogoUpload(event) {
 
@@ -8065,9 +8065,9 @@ function renderStatsCharts() {
 
     const ctxTrend = document.getElementById("salesTrendChart").getContext("2d");
 
-    if (salesTrendChartInstance) {
+    if (window.salesTrendChartInstance) {
 
-        salesTrendChartInstance.destroy();
+        window.salesTrendChartInstance.destroy();
 
     }
 
@@ -8077,7 +8077,7 @@ function renderStatsCharts() {
 
     const gridColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
 
-    salesTrendChartInstance = new Chart(ctxTrend, {
+    window.salesTrendChartInstance = new Chart(ctxTrend, {
 
         type: 'line',
 
@@ -8231,13 +8231,13 @@ function renderStatsCharts() {
 
     const ctxTop = document.getElementById("topItemsChart").getContext("2d");
 
-    if (topItemsChartInstance) {
+    if (window.topItemsChartInstance) {
 
-        topItemsChartInstance.destroy();
+        window.topItemsChartInstance.destroy();
 
     }
 
-    topItemsChartInstance = new Chart(ctxTop, {
+    window.topItemsChartInstance = new Chart(ctxTop, {
 
         type: 'bar',
 
