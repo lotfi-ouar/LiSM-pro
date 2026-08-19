@@ -429,9 +429,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         // تطبيق السمة ونوع المحل واسمه
 
-        applyStoreTheme(appState.storeSettings.type);
+        if (appState.storeSettings && typeof applyStoreTheme === "function") { applyStoreTheme(appState.storeSettings.type || "grocery"); }
 
-        updateStoreNameUI(appState.storeSettings.name);
+        if (appState.storeSettings && typeof updateStoreNameUI === "function") { updateStoreNameUI(appState.storeSettings.name || "متجري الذكي"); }
 
         // إظهار شاشة التطبيق الرئيسية وإخفاء شاشات الدخول
 
@@ -441,7 +441,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         document.getElementById("app-container").classList.remove("hidden");
 
-        applyUserPermissions(appState.currentUser.role);
+        if (appState.currentUser && typeof applyUserPermissions === "function") { applyUserPermissions(appState.currentUser.role || "admin"); }
 
         // 1. ربط مستمعي الأحداث البرمجية للأزرار والنماذج أولاً لضمان عملها
 
@@ -469,7 +469,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     } catch (err) {
 
-        alert("⚠️ خطأ أثناء تهيئة الواجهة: " + err.message + "\nتفاصيل: " + err.stack);
+        console.error("⚠️ خطأ أثناء تهيئة الواجهة:", err);
 
         console.error("خطأ أثناء تهيئة الواجهة المحلية:", err);
 
