@@ -1,0 +1,203 @@
+{
+  "storeSettings": {
+    "name": "محل السوبر أدمن الرئيسي (LOTFI)",
+    "type": "grocery",
+    "initialized": true
+  },
+  "products": [
+    {
+      "id": "g1",
+      "barcode": "613000000021",
+      "name": "حليب كونديا معقم 1لتر",
+      "buyPrice": 85,
+      "sellPrice": 115,
+      "qty": 36,
+      "unit": "علبة",
+      "category": "ألبان وأجبان",
+      "image": "images/milk.png"
+    },
+    {
+      "id": "g2",
+      "barcode": "613000000022",
+      "name": "قهوة بون عمران 250غ",
+      "buyPrice": 160,
+      "sellPrice": 220,
+      "qty": 20,
+      "unit": "علبة",
+      "category": "معلبات",
+      "image": "images/coffee.png"
+    },
+    {
+      "id": "g3",
+      "barcode": "613000000023",
+      "name": "كوكا كولا 1.5لتر",
+      "buyPrice": 130,
+      "sellPrice": 160,
+      "qty": 24,
+      "unit": "قارورة",
+      "category": "مشروبات",
+      "image": "images/coca.png"
+    },
+    {
+      "id": "g4",
+      "barcode": "613000000024",
+      "name": "خبز باجيت طازج",
+      "buyPrice": 10,
+      "sellPrice": 15,
+      "qty": 80,
+      "unit": "قطعة",
+      "category": "مخبوزات",
+      "image": "images/bread.png"
+    },
+    {
+      "id": "g5",
+      "barcode": "613000000025",
+      "name": "جبن شاف 16 قطعة",
+      "buyPrice": 180,
+      "sellPrice": 220,
+      "qty": 15,
+      "unit": "علبة",
+      "category": "ألبان وأجبان",
+      "image": "images/cheese.png"
+    },
+    {
+      "id": "PR-QUICK-CANDY",
+      "barcode": "quick-candy",
+      "name": "حلوى فردي",
+      "buyPrice": 5,
+      "sellPrice": 10,
+      "qty": 999,
+      "unit": "قطعة",
+      "category": "بيع سريع",
+      "promoQty": 0,
+      "promoPrice": 0,
+      "isQuickSell": true,
+      "emoji": "🍬"
+    },
+    {
+      "id": "PR-QUICK-GUM",
+      "barcode": "quick-gum",
+      "name": "علبة علكة",
+      "buyPrice": 30,
+      "sellPrice": 50,
+      "qty": 999,
+      "unit": "قطعة",
+      "category": "بيع سريع",
+      "promoQty": 0,
+      "promoPrice": 0,
+      "isQuickSell": true,
+      "emoji": "🍬"
+    },
+    {
+      "id": "PR-QUICK-BAG",
+      "barcode": "quick-bag",
+      "name": "كيس بلاستيكي",
+      "buyPrice": 5,
+      "sellPrice": 15,
+      "qty": 999,
+      "unit": "قطعة",
+      "category": "بيع سريع",
+      "promoQty": 0,
+      "promoPrice": 0,
+      "isQuickSell": true,
+      "emoji": "🛍️"
+    },
+    {
+      "id": "PR-QUICK-LIGHTER",
+      "barcode": "quick-lighter",
+      "name": "ولاعة غاز",
+      "buyPrice": 45,
+      "sellPrice": 70,
+      "qty": 999,
+      "unit": "قطعة",
+      "category": "بيع سريع",
+      "promoQty": 0,
+      "promoPrice": 0,
+      "isQuickSell": true,
+      "emoji": "🔥"
+    },
+    {
+      "id": "PR-FLEXY-DJEZZY",
+      "barcode": "flexy-djezzy",
+      "name": "فليكسي جيزي Djezzy",
+      "buyPrice": 95,
+      "sellPrice": 100,
+      "qty": 9999,
+      "unit": "قطعة",
+      "category": "فليكسي وتعبئة",
+      "promoQty": 0,
+      "promoPrice": 0,
+      "isQuickSell": true,
+      "emoji": "📱"
+    },
+    {
+      "id": "PR-FLEXY-MOBILIS",
+      "barcode": "flexy-mobilis",
+      "name": "فليكسي موبيليس Mobilis",
+      "buyPrice": 95,
+      "sellPrice": 100,
+      "qty": 9999,
+      "unit": "قطعة",
+      "category": "فليكسي وتعبئة",
+      "promoQty": 0,
+      "promoPrice": 0,
+      "isQuickSell": true,
+      "emoji": "📱"
+    },
+    {
+      "id": "PR-FLEXY-OOREDOO",
+      "barcode": "flexy-ooredoo",
+      "name": "فليكسي أوريدو Ooredoo",
+      "buyPrice": 95,
+      "sellPrice": 100,
+      "qty": 9999,
+      "unit": "قطعة",
+      "category": "فليكسي وتعبئة",
+      "promoQty": 0,
+      "promoPrice": 0,
+      "isQuickSell": true,
+      "emoji": "📱"
+    },
+    {
+      "id": "PROD1784841952154",
+      "name": "عصير طازج",
+      "barcode": "613000000529",
+      "buyPrice": 168,
+      "sellPrice": 190,
+      "qty": 50,
+      "unit": "قطعة",
+      "category": "عام",
+      "isQuickSell": false,
+      "emoji": "📦",
+      "cardColor": "",
+      "promoQty": null,
+      "promoPrice": null,
+      "barcodeIsBulk": false,
+      "image": ""
+    },
+    {
+      "id": "g-tob-choc-1785651443166",
+      "barcode": "quick-tob-choc",
+      "name": "طوب شوك",
+      "buyPrice": 35,
+      "sellPrice": 50,
+      "qty": 100,
+      "unit": "قطعة",
+      "category": "حلويات وشوكولاتة",
+      "isQuickSell": true
+    }
+  ],
+  "transactions": [],
+  "debts": [],
+  "supplierDebts": [],
+  "users": [
+    {
+      "id": "admin",
+      "displayName": "Lotfi Bouchahma (السوبر أدمن الرئيسي)",
+      "username": "LOTFI",
+      "password": "LOTFI",
+      "role": "admin",
+      "canOverridePrice": true
+    }
+  ]
+}
